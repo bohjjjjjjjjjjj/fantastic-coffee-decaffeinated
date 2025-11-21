@@ -2,191 +2,469 @@ openapi: 3.0.0
 servers:
   - url: "http://localhost:3000"
 info:
-  title: Fantastic Coffee (decaffeinated)
+  title: WASAText
   description: Fantastic Coffee (decaffeinated), the skeleton project for Web and Software architecture course
   version: 1.0.0
+
 paths:
-  /status:
-    parameters:
-      - $ref: "#/components/parameters/XAppBuild"
-      - $ref: "#/components/parameters/XAppVersion"
-      - $ref: "#/components/parameters/XAppLanguage"
-      - $ref: "#/components/parameters/XAppPlatform"
-    get:
-      tags: ["General"]
-      operationId: getStatusMessage
-      summary: Get status message for the user about issues / updates
+
+#--------Profilo--------
+  /user/username:
+    put:
+      tags: ["Profilo"]
+      operationId: setMyUserName
+      summary: Change WasaText profile username
       description: |-
-        The response contains a status message meant for the user. It might
-        contains information about current technical issues, update messages
-        or general information.
+        Aggiorna il nome visualizzato dall'utente.
+      security:
+        - LegacyAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              { $ref: "#/components/schemas/userName" }
+              
       responses:
         "200":
-          description: Status message available
+          description: Successful retrieval of WasaText profile username
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StatusInfo"
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "500": { $ref: "#/components/responses/InternalServerError" }
+                { $ref: "#/components/schemas/userName" }
 
-  /:
-    get:
-      tags: ["Group 1"]
-      operationId: index
-      summary: Get an index
-      description: |-
-        This is an example of an index API description
-      responses:
-        "200":
-          description: Successful
-        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
-  /context:
-    parameters:
-      - $ref: "#/components/parameters/XAppBuild"
-      - $ref: "#/components/parameters/XAppVersion"
-      - $ref: "#/components/parameters/XAppLanguage"
-      - $ref: "#/components/parameters/XAppPlatform"
-    post:
-      tags: ["Group 1"]
-      operationId: getContext
-      summary: Another API example
-      description: |-
-        Example description 2
-      responses:
-        "200":
-          description: Request ok
-          headers:
-            X-Access-Token:
-              description: Access token for authenticated requests
-              schema: { type: string }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-  /authenticated:
-    parameters:
-      - $ref: "#/components/parameters/XAppBuild"
-      - $ref: "#/components/parameters/XAppVersion"
-      - $ref: "#/components/parameters/XAppLanguage"
-      - $ref: "#/components/parameters/XAppPlatform"
-    get:
-      tags: ["Group 2"]
-      operationId: getAuthenticatedExample
-      summary: Get an endpoint with authentication
-      description: |-
-        Get an endpoint with auth
-      security:
-        - LegacyAuth: []
-        - AppToken: []
-      responses:
-        "200":
-          description: Logout successful
-        "500": { $ref: "#/components/responses/InternalServerError" }
-
-  /pictures/{cat}:
-    parameters:
-      - $ref: "#/components/parameters/XAppBuild"
-      - $ref: "#/components/parameters/XAppVersion"
-      - $ref: "#/components/parameters/XAppLanguage"
-      - $ref: "#/components/parameters/XAppPlatform"
-      - $ref: "#/components/parameters/cat"
-    get:
-      tags: ["Cat pictures"]
-      operationId: getCatFromPicture
-      summary: Example of a parameter in URL
-      description: |-
-        Example of a parameter in URL
-      security:
-        - LegacyAuth: []
-      responses:
-        "200":
-          description: Student picture found
-          content:
-            image/png:
-              schema:
-                type: string
-                format: binary
-              example: Picture binary file
-        "404":
-          description: Student picture not found
-        "500": { $ref: "#/components/responses/InternalServerError" }
-
-
-  /autofeeder/{cat}:
-    parameters:
-      - $ref: "#/components/parameters/XAppBuild"
-      - $ref: "#/components/parameters/XAppVersion"
-      - $ref: "#/components/parameters/XAppLanguage"
-      - $ref: "#/components/parameters/XAppPlatform"
-      - $ref: "#/components/parameters/cat"
+  
+  /user/photo:
     put:
-      tags: ["Autofeeder"]
-      operationId: createCatAutofeeder
-      summary: Example of PUT operation
+      tags: ["Profilo"]
+      operationId: setMyPhoto
+      summary: Change WasaText profile photo
+      description: |-
+        Aggiorna la foto profilo dell'utente.
       security:
         - LegacyAuth: []
+      
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              { $ref: "#/components/schemas/userPhoto" }
+
       responses:
         "200":
-          description: Auto feed enabled
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "500": { $ref: "#/components/responses/InternalServerError" }
-    delete:
-      tags: ["Autofeeder"]
-      operationId: deleteCatAutofeeder
-      summary: Example of DELETE operation
-      security:
-        - LegacyAuth: []
-      responses:
-        "200":
-          description: Auto feed disabled
-        "400": { $ref: "#/components/responses/BadRequest" }
+          description: Successful retrieval of WasaText profile username
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/userPhoto" }
+
+        "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
-  /session/login:
-    parameters:
-      - $ref: "#/components/parameters/XAppBuild"
-      - $ref: "#/components/parameters/XAppVersion"
-      - $ref: "#/components/parameters/XAppLanguage"
-      - $ref: "#/components/parameters/XAppPlatform"
-    post:
-      tags: ["Session management"]
-      operationId: login
-      summary: Log-in into system
+
+    get:
+      tags: ["Profilo"]
+      operationId: getMyPhoto
+      summary: Retrieve WasaText profile photo
       description: |-
-        Perform a log-in action using username and password credentials.
-        Returns a token which can be used in authenticated requests.
+        Ottiene la foto profilo dell'utente.
+      security:
+        - LegacyAuth: []
+      
+      responses:
+        "200":
+          description: Successful retrieval of WasaText profile photo
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/userPhoto" }
+
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+
+  /user:
+    get:
+      tags: ["Profilo"]
+      operationId: getMyUserInfo
+      summary: Retrieve WasaText profile information
+      description: |-
+        Ottiene le informazioni del profilo dell'utente.
+      security:
+        - LegacyAuth: []
+      
+      responses:
+        "200":
+          description: Successful retrieval of WasaText profile information
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/user" }
+
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+
+#--------End Profilo--------
+
+#--------Conversations--------
+  /conversations:
+    post:
+      tags: ["Conversations"]
+      operationId: createConversation
+      summary: Create a WasaText conversation
+      description: |-
+        Crea una nuova chat con un altro utente.
+      security:
+        - LegacyAuth: []
       requestBody:
         content:
-          application/x-www-form-urlencoded:
+          application/json:
             schema:
               type: object
+              required:
+                - username
               properties:
-                userid:
+                username:
                   type: string
-                  pattern: '^[a-zA-Z0-9]+$'
-                  minLength: 3
-                  maxLength: 255
-                password:
-                  type: string
-                  pattern: '^.*?$'
-                  minLength: 8
-                  maxLength: 255
+                  description: Username of the user to start a conversation with
       responses:
         "200":
-          description: Login successful
-          headers:
-            X-Access-Token:
-              description: Access token for authenticated requests
-              schema: { type: string }
-        "400": { $ref: "#/components/responses/BadRequest" }
-        "403":
-          description: Login failed
-          headers:
-            X-Message:
-              description: Error message
-              schema: { type: string }
+          description: Conversation created successfully
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+
+    get:
+      tags: ["Conversations"]
+      operationId: getMyConversations
+      summary: Retrieve WasaText list of conversation
+      description: |-
+        Ottiene la lista delle chat (ordine cronologico inverso).
+      security:
+        - LegacyAuth: []
+      responses:
+        "200":
+          description: Successful retrieval of WasaText messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  { $ref: "#/components/schemas/conversation"}
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+
+  /conversations/{conversationId}:
+    get:
+      tags: ["Conversations"]
+      operationId: getConversation
+      summary: Retrieve WasaText conversation messages
+      description: |-
+        Ottiene i messaggi di una chat specifica.
+      parameters:
+        - $ref: "#/components/parameters/conversationId"
+      security:
+        - LegacyAuth: []
+      responses:
+        "200":
+          description: Successful retrieval of WasaText messages
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  {$ref: "#/components/schemas/message"}
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+#--------End Conversations--------
+
+#--------Messages--------
+  
+
+  /conversations/{conversationId}/messages:
+    parameters:
+        - $ref: "#/components/parameters/conversationId"
+    post:
+      tags: ["Messages"]
+      operationId: sendMessage
+      summary: Send a WasaText message
+      description: |-
+        Invia un nuovo messaggio di testo o foto una chat specifica.
+      security:
+        - LegacyAuth: []
+      
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              {$ref: "#/components/schemas/NewMessageRequest"}
+      responses:
+        "200":
+          description: Message sent successfully
+        "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
 
+  /conversations/{conversationId}/messages/{messageId}/forward:
+    post:
+      tags: ["Messages"]
+      operationId: forwardMessage
+      summary: Forward a WasaText message
+      description: |-
+        Inoltra un messaggio di testo o foto a un'altra chat.
+      security:
+        - LegacyAuth: []
+      parameters:
+        - $ref: "#/components/parameters/conversationId"
+        - $ref: "#/components/parameters/messageId"
+
+      requestBody:
+        content:
+          application/json:
+            schema:
+              {$ref: "#/components/schemas/messageForward"}
+      responses:
+        "200":
+          description: Message forwarded successfully
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+  
+  /conversations/{conversationId}/messages/{messageId}:
+    parameters:
+        - $ref: "#/components/parameters/conversationId"
+        - $ref: "#/components/parameters/messageId"
+
+    delete:
+      tags: ["Messages"]
+      operationId: deleteMessage
+      summary: Delete a WasaText message
+      description: |-
+        Elimina un messaggio di testo o foto da una chat specifica.
+      
+      security:
+        - LegacyAuth: []
+      responses:
+        "200":
+          description: Message deleted successfully
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+#--------End Messages--------
+
+#--------Reaction-------
+  /conversations/{conversationId}/messages/{messageId}/reactions:
+    parameters:
+      - $ref: "#/components/parameters/messageId"
+      - $ref: "#/components/parameters/conversationId"
+    post:
+      tags: ["Reactions"]
+      operationId: commentMessage
+      summary: Add a reaction to a WasaText message
+      description: |-
+        Aggiunge una reazione (like, love, etc.) a un messaggio di testo o foto.
+      
+      security:
+        - LegacyAuth: []
+      requestBody:
+        content:
+          application/json:
+            schema:
+              { $ref: "#/components/schemas/reaction"} 
+
+      responses:
+        "200":
+          description: Reaction added successfully
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/reactionList"}
+
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+
+  /conversations/{conversationId}/messages/{messageId}/reactions{reactionsId}:
+    delete:
+      tags: ["Reactions"]
+      operationId: uncommentMessage
+      summary: Remove a reaction from a WasaText message
+      description: |-
+        Rimuove una reazione (like, love, etc.) da un messaggio di testo o foto.
+      security:
+        - LegacyAuth: []
+      responses:
+        "200":
+          description: Reaction removed successfully
+          content:
+            application/json:
+              schema:
+                { $ref: "#/components/schemas/reactionList"}
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+#--------End Reactions------
+
+#--------Group--------
+  /groups:
+    post:
+      tags: ["Group"]
+      operationId: createGroup
+      summary: Create a WasaText group 
+      description: |-
+        Crea un nuovo gruppo di WasaText.
+      security:
+        - LegacyAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: Name of the group to be created
+      responses:
+        "200":
+          description: Successful creation of WasaText group
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+  
+  /groups/{groupId}:
+    parameters:
+      - $ref: "#/components/parameters/groupId"
+    get:
+      tags: ["Group"]
+      operationId: getGroupDetails
+      summary: Retrieve WasaText group details 
+      description: |-
+            Ottiene i dettagli di un gruppo specifico.
+      security:
+        - LegacyAuth: []
+      responses:
+        "200":
+          description: Successful retrieval of group details
+          content:
+            application/json:
+             schema:
+              type: object
+              required:
+                  - id
+                  - name
+                  - photoUrl
+              properties:
+                  id:
+                    type: string
+                  name:
+                    type: string
+                  photoUrl:
+                    type: string
+                    format: url
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+  
+  /groups/{groupId}/members:
+    parameters:
+        - $ref: "#/components/parameters/groupId"
+
+    post:
+      tags: ["Group"]
+      operationId: addToGroup
+      summary: Add WasaText people in the group 
+      description: |-
+        Aggiunge membri in un gruppo specifico.
+      security:
+        - LegacyAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              { $ref: "#/components/schemas/memberIdList"}
+      responses:
+        "200":
+          description: Successful retrieval of group members
+          content:
+            application/json:
+              schema:
+                {$ref: "#/components/schemas/groupMemberListResponse" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+  
+  /groups/{groupId}/members/me:
+    parameters:
+        - $ref: "#/components/parameters/groupId"
+    delete:
+      tags: ["Group"]
+      operationId: leaveGroup
+      summary: Leave WasaText group 
+      description: |-
+        Permette all'utente di uscire da un gruppo specifico.
+      security:
+        - LegacyAuth: []
+      
+
+      responses:
+        "200":
+          description: Successful leave of the group
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+
+  /groups/{groupId}/name:
+    parameters:
+        - $ref: "#/components/parameters/groupId"
+    put:
+      tags: ["Group"]
+      operationId: setGroupName
+      summary: Change WasaText group name
+      description: |-
+        Aggiorna il nome del gruppo.
+      security:
+        - LegacyAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              {$ref: "#/components/schemas/groupName" }
+
+      responses:
+        "200":
+          description: Successful update of group name
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+  
+  /groups/{groupId}/photo:
+    parameters:
+        - $ref: "#/components/parameters/groupId"
+
+    put:
+      tags: ["Group"]
+      operationId: setGroupPhoto
+      summary: Change WasaText group photo
+      description: |-
+        Aggiorna la foto del gruppo.
+      security:
+        - LegacyAuth: []
+
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              {$ref: "#/components/schemas/groupPhoto" }
+      
+      responses:
+        "200":
+          description: Successful update of group photo
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+#--------Components--------
 components:
   schemas:
     StatusInfo:
@@ -203,7 +481,233 @@ components:
         title: { type: string }
         message: { type: string }
         url: { type: string }
+    #--------Inisio della mia schema
+    groupMemberListResponse:
+      title: Group Member List
+      description: Lista aggiornata dei membri del gruppo.
+      type: object
+      required: ['members']
+      properties:
+       members:
+        type: array
+        items:
+         { $ref: "#/components/schemas/user" } # Usa lo schema user completo
 
+    user:
+      type: object
+      required: ['id', 'username']
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        photoUrl:
+          type: string
+          format: url
+
+        
+
+    conversation:
+      title: Conversation
+      description: WasaText conversation summary
+      type: object
+      required:
+        - id
+        - username
+        - photo
+        - dataLastMessage
+        - snippet
+      properties:
+        id:
+          type: string
+        username:
+          type: string
+        photo:
+          type: string
+          format: url
+        dataLastMessage:
+          type: string
+          format: date-time
+        snippet:
+          type: string
+          description: Message content (text or photo)
+          
+    userName:
+      type: object
+      title: UserName
+      description:  new username profile
+      required: 
+        - username
+      properties:
+        username:
+          type: string
+
+    userPhoto:
+      type: object
+      title: UserPhoto
+      description:  new photo profile
+      required: 
+        - photoUrl
+      properties:
+        photoUrl:
+          type: string
+          format: url
+    
+    message:
+      type: object
+      title: Message
+      description: WasaText conversation messages
+      required:
+        - id
+        - content
+        - senderUsername
+        - dataSent
+        - status
+      properties:
+        id:
+          type: string
+        content:
+          type: object
+          description: Message content (text or photo)
+          oneOf:
+            - $ref: "#/components/schemas/TextMessageContent"
+            - $ref: "#/components/schemas/PhotoMessageContent"
+        senderUsername:
+          type: string
+        dataSent:
+          type: string
+          format: date-time
+        status:
+          {$ref: "#/components/schemas/statusMessage"}
+        reaction:
+          type: array
+          description: Lista della reasioni
+          items:
+            { $ref: "#/components/schemas/reaction" }
+    
+    statusMessage:
+      type: object
+      title: StatusMessage
+      description: Descrive the status of the sms
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - sent
+            - delivered
+            - read
+            - failed
+
+    TextMessageContent:
+      title: Text Message Content
+      description: Contenuto di un messaggio di testo.
+      type: object
+      required: 
+        - text
+      properties:
+        text:
+          type: string
+          description: Il contenuto del messaggio di testo.
+          example: Ciao a tutti!
+
+    PhotoMessageContent:
+      title: Contenuto Foto
+      type: object
+      required: 
+        - photoUrl
+      properties:
+        photoUrl:
+          type: string
+          format: url
+          description: URL della foto inviata.
+          example: https://wasatext.com/media/photo123.jpg
+
+    messageForward:
+      title: Message Forward
+      description: WasaText message forwarding
+      type: object
+      required: 
+        - messageId
+        - targetConversationId
+      properties:
+        messageId:
+          type: string
+          example: "msg_12345"
+        targetConversationId:
+          type: string
+          example: "conv_67890"
+      
+    reaction:
+      type: object
+      required: 
+        - reactionType
+        - userSenderId
+      properties:
+        reactionType:
+          type: string
+          example: "like"
+        userSenderId:
+          type: string
+          example: "user_67890"
+
+    memberIdList:
+      type: object
+      required: 
+        - memberIds
+      properties:
+        memberIds:
+          type: array
+          items:
+            type: string
+          example: ["user_12345", "user_67890"]  
+    
+    groupName:
+      type: object
+      required: 
+        - name
+      properties:
+        name: 
+         type: string
+         example: "Friends Group"
+
+    groupPhoto:
+      type: object
+      required: 
+        - photoUrl
+      properties:
+        photoUrl:
+          type: string
+          format: url
+          example: "https://example.com/group_photo.jpg"
+
+    reactionList:
+      type: object
+      required: 
+        - reactions
+      properties:
+        reactions:
+          type: array
+          items:
+            { $ref: "#/components/schemas/reaction" }
+      
+    NewMessageRequest:
+      type: object
+      required: 
+      - content
+      properties:
+        content:
+          type: object
+          description: Message content (text or photo)
+          oneOf:
+            - $ref: "#/components/schemas/TextMessageContent"
+            - $ref: "#/components/schemas/PhotoMessageContent"
+        replyToMessageId:
+          type: string
+          description: ID of the message being replied to 
+
+#----------------------------------------------------
   responses:
     Unauthorized:
       description: The access token is missing or it's expired
@@ -212,62 +716,47 @@ components:
     InternalServerError:
       description: The server encountered an internal error. Further info in server logs
 
-  securitySchemes:
-    LegacyAuth:
-      type: apiKey
-      in: header
-      name: X-App-Token
-      description: |-
-        App session token value. This value is sent by the server in the login
-        and session refresh APIs.
+  
 
+  securitySchemes:
+    # 1. Definisci il nome dello schema
+    BearerAuth:
+      type: http            # Il tipo di meccanismo è l'autenticazione HTTP
+      scheme: bearer        # Lo schema specifico è un Bearer Token
+      bearerFormat: JWT     # (Opzionale, ma consigliato) Indica che il formato del token è un JWT
+      description: Il token di sessione ottenuto dall'operazione 'doLogin' deve essere incluso nell'header 'Authorization' per tutte le richieste protette, nel formato 'Bearer <token>'.
+#----------Parameters------
   parameters:
-    XAppVersion:
+    conversationId:
       schema:
-        type: string
-        pattern: '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*)(?:\.(?:0|[1-9]\d*|\d*[a-zA-Z-][0-9a-zA-Z-]*))*))?(?:\+([0-9a-zA-Z-]+(?:\.[0-9a-zA-Z-]+)*))?$'
-        minLength: 1
-        maxLength: 10
-      name: X-App-Version
-      in: header
-      required: true
-      description: App human readable version ("semantic version" format)
-      allowEmptyValue: false
-    XAppBuild:
-      schema: { type: integer }
-      name: X-App-Build
-      in: header
-      required: true
-      description: App build number
-      allowEmptyValue: false
-    XAppLanguage:
-      schema:
-        type: string
-        pattern: '^[a-z]{2}([-_][A-Z]{2})?$'
-        minLength: 2
-        maxLength: 5
-      name: X-App-Language
-      in: header
-      required: true
-      description: App language in ISO 639-1 format
-      allowEmptyValue: false
-    XAppPlatform:
-      schema:
-        type: string
-        enum: [ios, android]
-      name: X-App-Platform
-      in: header
-      required: true
-      description: App operating system / platform
-      allowEmptyValue: false
-    cat:
-      schema:
-        type: string
-        pattern: '^[a-zA-Z]+$'
-        minLength: 3
-        maxLength: 10
-      name: cat
+          type: string
+      description: The ID of the conversation to retrieve messages from
+      name: conversationId
       in: path
       required: true
-      description: Cat
-      allowEmptyValue: false
+        
+    groupId: 
+      schema:
+          type: string
+      description: The ID of the group to change photo 
+      name: groupId
+      in: path
+      required: true
+
+    messageId:
+      schema:
+        type: string
+      name: messageId
+      in: path
+      required: true
+      description: The ID of the message to add a reaction to
+              
+       
+          
+
+
+
+
+
+
+
