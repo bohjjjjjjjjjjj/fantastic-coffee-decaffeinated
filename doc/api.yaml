@@ -143,8 +143,9 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/userName"
-
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/Conflict" }
         "500": { $ref: "#/components/responses/InternalServerError" }
   
   /user/photo:
@@ -245,9 +246,15 @@ paths:
                   maxLength: 30
                   pattern: "^[a-zA-Z0-9_]+$"
       responses:
-        "200":
+        "201":
           description: Conversation created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/conversation"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
     get:
@@ -297,6 +304,7 @@ paths:
                 items:
                   $ref: "#/components/schemas/message"
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 #--------End Conversations--------
 
@@ -320,9 +328,15 @@ paths:
             schema:
               $ref: "#/components/schemas/NewMessageRequest"
       responses:
-        "200":
+        "201":
           description: Message sent successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/message"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
   /conversations/{conversationId}/messages/{messageId}/forward:
@@ -345,9 +359,15 @@ paths:
             schema:
               $ref: "#/components/schemas/messageForward"
       responses:
-        "200":
+        "201":
           description: Message forwarded successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/message"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
   
   /conversations/{conversationId}/messages/{messageId}:
@@ -364,9 +384,10 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        "204":
           description: Message deleted successfully
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 #--------End Messages--------
 
@@ -388,17 +409,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/reaction"
+              $ref: "#/components/schemas/NewReaction"
 
       responses:
-        "200":
+        "201":
           description: Reaction added successfully
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/reactionList"
-
+                $ref: "#/components/schemas/reaction"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
   /conversations/{conversationId}/messages/{messageId}/reactions/{reactionId}:
@@ -415,13 +437,10 @@ paths:
       security:
         - BearerAuth: []
       responses:
-        "200":
+        "204":
           description: Reaction removed successfully
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/reactionList"
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 #--------End Reactions------
 
@@ -453,8 +472,13 @@ paths:
                   maxLength: 50
                   pattern: "^[a-zA-Z0-9_ ]+$"
       responses:
-        "200":
+        "201":
           description: Successful creation of WasaText group
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/group"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
   
@@ -475,38 +499,33 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                description: Dettagli completi del gruppo
-                required:
-                  - id
-                  - name
-                  - photoUrl
-                properties:
-                  id:
-                    type: string
-                    description: ID univoco del gruppo
-                    minLength: 1
-                    maxLength: 64
-                    pattern: "^[a-zA-Z0-9_\\-]+$"
-                  name:
-                    type: string
-                    description: Nome del gruppo
-                    minLength: 1
-                    maxLength: 50
-                    pattern: "^[a-zA-Z0-9_ ]+$"
-                  photoUrl:
-                    type: string
-                    description: URL della foto di copertina del gruppo
-                    format: url
-                    minLength: 10
-                    maxLength: 2048
-                    pattern: "^https?://.+"
+                $ref: "#/components/schemas/group"
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
   
   /groups/{groupId}/members:
     parameters:
       - $ref: "#/components/parameters/groupId"
+
+    get:
+      tags: ["Group"]
+      operationId: getGroupMembers
+      summary: Retrieve WasaText group members
+      description: |-
+        Ottiene l'elenco dei membri di un gruppo specifico.
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Successful retrieval of group members
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/groupMemberListResponse"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
 
     post:
       tags: ["Group"]
@@ -530,7 +549,9 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/groupMemberListResponse"
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
   
   /groups/{groupId}/members/me:
@@ -546,9 +567,10 @@ paths:
         - BearerAuth: []
 
       responses:
-        "200":
+        "204":
           description: Successful leave of the group
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
   /groups/{groupId}/name:
@@ -573,7 +595,9 @@ paths:
       responses:
         "200":
           description: Successful update of group name
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
   
   /groups/{groupId}/photo:
@@ -599,41 +623,39 @@ paths:
       responses:
         "200":
           description: Successful update of group photo
+        "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
 #--------Components--------
 components:
   schemas:
-    StatusInfo:
-      title: Status Info
-      description: Informazioni sullo stato di sistema o di un'operazione
+    group:
+      title: Group
+      description: Dettagli completi del gruppo
       type: object
+      required:
+        - id
+        - name
+        - photoUrl
       properties:
-        status:
+        id:
           type: string
-          description: Livello di gravità dello stato
-          enum:
-            - info
-            - warning
-            - critical
-            - ""
-        title:
-          type: string
-          description: Titolo dello stato
+          description: ID univoco del gruppo
           minLength: 1
-          maxLength: 100
+          maxLength: 64
+          pattern: "^[a-zA-Z0-9_\\-]+$"
+        name:
+          type: string
+          description: Nome del gruppo
+          minLength: 1
+          maxLength: 50
           pattern: "^[a-zA-Z0-9_ ]+$"
-        message:
+        photoUrl:
           type: string
-          description: Messaggio di dettaglio dello stato
-          minLength: 1
-          maxLength: 500
-          pattern: "^.+$"
-        url:
-          type: string
-          description: URL con maggiori informazioni
-          format: url
+          description: URL della foto di copertina del gruppo
+          format: uri
           minLength: 10
           maxLength: 2048
           pattern: "^https?://.+"
@@ -673,7 +695,7 @@ components:
         photoUrl:
           type: string
           description: URL della foto profilo dell'utente
-          format: url
+          format: uri
           minLength: 10
           maxLength: 2048
           pattern: "^https?://.+"
@@ -704,7 +726,7 @@ components:
         photo:
           type: string
           description: Foto dell'interlocutore o del gruppo
-          format: url
+          format: uri
           minLength: 10
           maxLength: 2048
           pattern: "^https?://.+"
@@ -746,7 +768,7 @@ components:
         photoUrl:
           type: string
           description: URL della nuova foto profilo da impostare
-          format: url
+          format: uri
           minLength: 10
           maxLength: 2048
           pattern: "^https?://.+"
@@ -837,7 +859,7 @@ components:
       properties:
         photoUrl:
           type: string
-          format: url
+          format: uri
           description: URL della foto inviata.
           minLength: 10
           maxLength: 2048
@@ -867,9 +889,27 @@ components:
           pattern: "^[a-zA-Z0-9_\\-]+$"
           example: "conv_67890"
       
+    NewReaction:
+      title: New Reaction
+      description: |-
+        Payload inviato dal client per aggiungere una reazione a un messaggio.
+        L'utente che reagisce NON viene indicato qui: è ricavato dal token
+        presente nell'header Authorization.
+      type: object
+      required:
+        - reactionType
+      properties:
+        reactionType:
+          type: string
+          description: Tipo/Emoji di reazione utilizzata
+          minLength: 1
+          maxLength: 20
+          pattern: "^.+$"
+          example: "like"
+
     reaction:
       title: Reaction
-      description: Reazione emoji inviata da un utente a un messaggio
+      description: Reazione applicata a un messaggio, così come restituita dal server
       type: object
       required: 
         - reactionType
@@ -934,28 +974,13 @@ components:
       properties:
         photoUrl:
           type: string
-          format: url
+          format: uri
           description: URL della foto del gruppo
           minLength: 10
           maxLength: 2048
           pattern: "^https?://.+"
           example: "https://example.com/group_photo.jpg"
 
-    reactionList:
-      title: Reaction List
-      description: Elenco completo delle reazioni applicate a un messaggio
-      type: object
-      required: 
-        - reactions
-      properties:
-        reactions:
-          type: array
-          description: Array contenente gli oggetti reazione
-          minItems: 0
-          maxItems: 100
-          items:
-            $ref: "#/components/schemas/reaction"
-      
     NewMessageRequest:
       title: New Message Request
       description: Payload per inviare un nuovo messaggio in una conversazione
@@ -982,6 +1007,10 @@ components:
       description: The access token is missing or it's expired
     BadRequest:
       description: The request was not compliant with the documentation (eg. missing fields, etc)
+    NotFound:
+      description: The requested resource (conversation, message, group, reaction, user) does not exist
+    Conflict:
+      description: The request could not be completed due to a conflict with the current state of the resource (e.g. username already taken)
     InternalServerError:
       description: The server encountered an internal error. Further info in server logs
 
@@ -990,8 +1019,9 @@ components:
     BearerAuth:
       type: http
       scheme: bearer
-      bearerFormat: JWT
-      description: Il token di sessione ottenuto dall'operazione 'doLogin' deve essere incluso nell'header 'Authorization' per tutte le richieste protette, nel formato 'Bearer <token>'.
+      description: |-
+        Identificatore utente semplificato (non un JWT reale) ottenuto dall'operazione 'doLogin'.
+        Deve essere incluso nell'header 'Authorization' per tutte le richieste protette, nel formato 'Bearer <identifier>'.
 
   #--------Parameters--------
   parameters:
