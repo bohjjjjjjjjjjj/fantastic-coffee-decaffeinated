@@ -1,6 +1,6 @@
 openapi: 3.0.0
 servers:
-  - url: "http://localhost:3000"
+  - url: "http://localhost:3000/v1"
 info:
   title: WASAText
   description: Fantastic Coffee (decaffeinated), the skeleton project for Web and Software architecture course
@@ -52,6 +52,8 @@ paths:
           description: Login effettuato con successo (utente esistente)
           content:
             application/json:
+              example:
+                identifier: "sess_123456789"
               schema:
                 type: object
                 description: Risposta con l'identificatore di sessione
@@ -68,6 +70,8 @@ paths:
           description: Utente creato e login effettuato con successo
           content:
             application/json:
+              example:
+                identifier: "sess_987654321"
               schema:
                 type: object
                 description: Risposta con l'identificatore di sessione per il nuovo utente
@@ -108,13 +112,24 @@ paths:
           description: Lista degli utenti trovati
           content:
             application/json:
+              example:
+                users:
+                  - id: "usr_123"
+                    username: "mario_rossi"
+                    photoUrl: "https://example.com/photo.jpg"
               schema:
-                type: array
-                description: Elenco degli utenti trovati
-                minItems: 0
-                maxItems: 100
-                items:
-                  $ref: "#/components/schemas/user"
+                type: object
+                description: Contenitore della lista utenti
+                required:
+                  - users
+                properties:
+                  users:
+                    type: array
+                    description: Elenco degli utenti trovati
+                    minItems: 0
+                    maxItems: 100
+                    items:
+                      $ref: "#/components/schemas/User"
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
@@ -134,15 +149,17 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/userName"
+              $ref: "#/components/schemas/UserName"
               
       responses:
         "200":
           description: Successful retrieval of WasaText profile username
           content:
             application/json:
+              example:
+                username: "mario_nuovo"
               schema:
-                $ref: "#/components/schemas/userName"
+                $ref: "#/components/schemas/UserName"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "409": { $ref: "#/components/responses/Conflict" }
@@ -163,15 +180,17 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/userPhoto"
+              $ref: "#/components/schemas/UserPhoto"
 
       responses:
         "200":
           description: Successful retrieval of WasaText profile photo
           content:
             application/json:
+              example:
+                photoUrl: "https://example.com/new_photo.jpg"
               schema:
-                $ref: "#/components/schemas/userPhoto"
+                $ref: "#/components/schemas/UserPhoto"
 
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
@@ -190,8 +209,10 @@ paths:
           description: Successful retrieval of WasaText profile photo
           content:
             application/json:
+              example:
+                photoUrl: "https://example.com/photo.jpg"
               schema:
-                $ref: "#/components/schemas/userPhoto"
+                $ref: "#/components/schemas/UserPhoto"
 
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
@@ -211,13 +232,15 @@ paths:
           description: Successful retrieval of WasaText profile information
           content:
             application/json:
+              example:
+                id: "usr_123"
+                username: "mario_rossi"
+                photoUrl: "https://example.com/photo.jpg"
               schema:
-                $ref: "#/components/schemas/user"
+                $ref: "#/components/schemas/User"
 
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
-
-#--------End Profilo--------
 
 #--------Conversations--------
   /conversations:
@@ -251,7 +274,17 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/conversation"
+                $ref: "#/components/schemas/Conversation"
+              examples:
+                ConversationCreated:
+                  summary: Esempio di conversazione creata
+                  value:
+                    id: "conv_123"
+                    username: "luigi_verdi"
+                    photo: "https://example.com/luigi.jpg"
+                    dataLastMessage: "2026-03-30T10:00:00Z"
+                    snippet: "Ciao!"
+              
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -270,13 +303,26 @@ paths:
           description: Successful retrieval of WasaText messages
           content:
             application/json:
+              example:
+                conversations:
+                  - id: "conv_123"
+                    username: "luigi_verdi"
+                    photo: "https://example.com/luigi.jpg"
+                    dataLastMessage: "2026-03-30T10:00:00Z"
+                    snippet: "Ciao!"
               schema:
-                type: array
-                description: Elenco delle conversazioni attive
-                minItems: 0
-                maxItems: 500
-                items:
-                  $ref: "#/components/schemas/conversation"
+                type: object
+                description: Risposta contenente le conversazioni
+                required:
+                  - conversations
+                properties:
+                  conversations:
+                    type: array
+                    description: Elenco delle conversazioni attive
+                    minItems: 0
+                    maxItems: 500
+                    items:
+                      $ref: "#/components/schemas/Conversation"
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
@@ -296,17 +342,31 @@ paths:
           description: Successful retrieval of WasaText messages
           content:
             application/json:
+              example:
+                messages:
+                  - id: "msg_100"
+                    senderUsername: "mario_rossi"
+                    dataSent: "2026-03-30T10:00:00Z"
+                    status:
+                      value: "read"
+                    content:
+                      text: "Ciao!"
               schema:
-                type: array
-                description: Elenco dei messaggi all'interno della conversazione
-                minItems: 0
-                maxItems: 1000
-                items:
-                  $ref: "#/components/schemas/message"
+                type: object
+                description: Oggetto contenente la lista dei messaggi
+                required:
+                  - messages
+                properties:
+                  messages:
+                    type: array
+                    description: Elenco dei messaggi all'interno della conversazione
+                    minItems: 0
+                    maxItems: 1000
+                    items:
+                      $ref: "#/components/schemas/Message"
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
-#--------End Conversations--------
 
 #--------Messages--------
   /conversations/{conversationId}/messages:
@@ -332,8 +392,16 @@ paths:
           description: Message sent successfully
           content:
             application/json:
+              example:
+                id: "msg_101"
+                senderUsername: "mario_rossi"
+                dataSent: "2026-03-30T10:05:00Z"
+                status:
+                  value: "sent"
+                content:
+                  text: "Come stai?"
               schema:
-                $ref: "#/components/schemas/message"
+                $ref: "#/components/schemas/Message"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -357,14 +425,22 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/messageForward"
+              $ref: "#/components/schemas/MessageForward"
       responses:
         "201":
           description: Message forwarded successfully
           content:
             application/json:
+              example:
+                id: "msg_102"
+                senderUsername: "mario_rossi"
+                dataSent: "2026-03-30T10:06:00Z"
+                status:
+                  value: "sent"
+                content:
+                  text: "Messaggio inoltrato"
               schema:
-                $ref: "#/components/schemas/message"
+                $ref: "#/components/schemas/Message"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -389,7 +465,6 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
-#--------End Messages--------
 
 #--------Reactions-------
   /conversations/{conversationId}/messages/{messageId}/reactions:
@@ -416,8 +491,11 @@ paths:
           description: Reaction added successfully
           content:
             application/json:
+              example:
+                reactionType: "like"
+                userSenderId: "usr_123"
               schema:
-                $ref: "#/components/schemas/reaction"
+                $ref: "#/components/schemas/Reaction"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -442,7 +520,6 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
-#--------End Reactions------
 
 #--------Group--------
   /groups:
@@ -476,8 +553,12 @@ paths:
           description: Successful creation of WasaText group
           content:
             application/json:
+              example:
+                id: "grp_001"
+                name: "Amici"
+                photoUrl: "https://example.com/group.jpg"
               schema:
-                $ref: "#/components/schemas/group"
+                $ref: "#/components/schemas/Group"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
@@ -498,8 +579,12 @@ paths:
           description: Successful retrieval of group details
           content:
             application/json:
+              example:
+                id: "grp_001"
+                name: "Amici"
+                photoUrl: "https://example.com/group.jpg"
               schema:
-                $ref: "#/components/schemas/group"
+                $ref: "#/components/schemas/Group"
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
@@ -521,8 +606,13 @@ paths:
           description: Successful retrieval of group members
           content:
             application/json:
+              example:
+                members:
+                  - id: "usr_123"
+                    username: "mario_rossi"
+                    photoUrl: "https://example.com/photo.jpg"
               schema:
-                $ref: "#/components/schemas/groupMemberListResponse"
+                $ref: "#/components/schemas/GroupMemberListResponse"
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
@@ -541,14 +631,19 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/memberIdList"
+              $ref: "#/components/schemas/MemberIdList"
       responses:
         "200":
           description: Successful retrieval of group members
           content:
             application/json:
+              example:
+                members:
+                  - id: "usr_123"
+                    username: "mario_rossi"
+                    photoUrl: "https://example.com/photo.jpg"
               schema:
-                $ref: "#/components/schemas/groupMemberListResponse"
+                $ref: "#/components/schemas/GroupMemberListResponse"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -590,11 +685,17 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/groupName"
+              $ref: "#/components/schemas/GroupName"
 
       responses:
         "200":
           description: Successful update of group name
+          content:
+            application/json:
+              example:
+                name: "Nuovo Nome Gruppo"
+              schema:
+                $ref: "#/components/schemas/GroupName"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -618,11 +719,17 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/groupPhoto"
+              $ref: "#/components/schemas/GroupPhoto"
       
       responses:
         "200":
           description: Successful update of group photo
+          content:
+            application/json:
+              example:
+                photoUrl: "https://example.com/new_group_photo.jpg"
+              schema:
+                $ref: "#/components/schemas/GroupPhoto"
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
@@ -631,7 +738,7 @@ paths:
 #--------Components--------
 components:
   schemas:
-    group:
+    Group:
       title: Group
       description: Dettagli completi del gruppo
       type: object
@@ -655,12 +762,12 @@ components:
         photoUrl:
           type: string
           description: URL della foto di copertina del gruppo
-          format: uri
+          format: url
           minLength: 10
           maxLength: 2048
           pattern: "^https?://.+"
 
-    groupMemberListResponse:
+    GroupMemberListResponse:
       title: Group Member List
       description: Lista aggiornata dei membri del gruppo.
       type: object
@@ -672,9 +779,9 @@ components:
           minItems: 1
           maxItems: 100
           items:
-            $ref: "#/components/schemas/user"
+            $ref: "#/components/schemas/User"
 
-    user:
+    User:
       title: User
       description: Informazioni di base di un utente
       type: object
@@ -695,12 +802,12 @@ components:
         photoUrl:
           type: string
           description: URL della foto profilo dell'utente
-          format: uri
+          format: url
           minLength: 10
           maxLength: 2048
           pattern: "^https?://.+"
 
-    conversation:
+    Conversation:
       title: Conversation
       description: WasaText conversation summary
       type: object
@@ -726,7 +833,7 @@ components:
         photo:
           type: string
           description: Foto dell'interlocutore o del gruppo
-          format: uri
+          format: url
           minLength: 10
           maxLength: 2048
           pattern: "^https?://.+"
@@ -744,7 +851,7 @@ components:
           maxLength: 200
           pattern: "^.*$"
           
-    userName:
+    UserName:
       type: object
       title: UserName
       description: New username profile
@@ -758,7 +865,7 @@ components:
           maxLength: 30
           pattern: "^[a-zA-Z0-9_]+$"
 
-    userPhoto:
+    UserPhoto:
       type: object
       title: UserPhoto
       description: New photo profile
@@ -768,12 +875,12 @@ components:
         photoUrl:
           type: string
           description: URL della nuova foto profilo da impostare
-          format: uri
+          format: url
           minLength: 10
           maxLength: 2048
           pattern: "^https?://.+"
     
-    message:
+    Message:
       type: object
       title: Message
       description: WasaText conversation messages
@@ -810,23 +917,23 @@ components:
           maxLength: 35
           pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
         status:
-          $ref: "#/components/schemas/statusMessage"
+          $ref: "#/components/schemas/StatusMessage"
         reaction:
           type: array
           description: Lista delle reazioni associate al messaggio
           minItems: 0
           maxItems: 100
           items:
-            $ref: "#/components/schemas/reaction"
+            $ref: "#/components/schemas/Reaction"
     
-    statusMessage:
+    StatusMessage:
       type: object
       title: StatusMessage
       description: Descrive lo stato di consegna e lettura del messaggio
       required:
-        - status
+        - value
       properties:
-        status:
+        value:
           type: string
           description: Stato corrente del messaggio
           enum:
@@ -859,28 +966,20 @@ components:
       properties:
         photoUrl:
           type: string
-          format: uri
+          format: url
           description: URL della foto inviata.
           minLength: 10
           maxLength: 2048
           pattern: "^https?://.+"
           example: https://wasatext.com/media/photo123.jpg
 
-    messageForward:
+    MessageForward:
       title: Message Forward
       description: WasaText message forwarding
       type: object
       required: 
-        - messageId
         - targetConversationId
       properties:
-        messageId:
-          type: string
-          description: ID del messaggio originale da inoltrare
-          minLength: 1
-          maxLength: 64
-          pattern: "^[a-zA-Z0-9_\\-]+$"
-          example: "msg_12345"
         targetConversationId:
           type: string
           description: ID della conversazione di destinazione dell'inoltro
@@ -907,7 +1006,7 @@ components:
           pattern: "^.+$"
           example: "like"
 
-    reaction:
+    Reaction:
       title: Reaction
       description: Reazione applicata a un messaggio, così come restituita dal server
       type: object
@@ -930,7 +1029,7 @@ components:
           pattern: "^[a-zA-Z0-9_\\-]+$"
           example: "user_67890"
 
-    memberIdList:
+    MemberIdList:
       title: Member ID List
       description: Elenco degli ID degli utenti da aggiungere al gruppo
       type: object
@@ -950,7 +1049,7 @@ components:
             pattern: "^[a-zA-Z0-9_\\-]+$"
           example: ["user_12345", "user_67890"]
     
-    groupName:
+    GroupName:
       title: Group Name
       description: Nome aggiornato del gruppo
       type: object
@@ -965,7 +1064,7 @@ components:
           pattern: "^[a-zA-Z0-9_ ]+$"
           example: "Friends Group"
 
-    groupPhoto:
+    GroupPhoto:
       title: Group Photo
       description: URL aggiornato della foto di profilo del gruppo
       type: object
@@ -974,7 +1073,7 @@ components:
       properties:
         photoUrl:
           type: string
-          format: uri
+          format: url
           description: URL della foto del gruppo
           minLength: 10
           maxLength: 2048
@@ -1001,18 +1100,50 @@ components:
           maxLength: 64
           pattern: "^[a-zA-Z0-9_\\-]+$"
 
+    ErrorResponse:
+      title: Error Response
+      description: Error response returned by the server in case of failure
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+          description: Descrizione dell'errore
+          example: "Risorsa non trovata"
+
   #--------Responses--------
   responses:
     Unauthorized:
       description: The access token is missing or it's expired
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
     BadRequest:
       description: The request was not compliant with the documentation (eg. missing fields, etc)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
     NotFound:
       description: The requested resource (conversation, message, group, reaction, user) does not exist
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
     Conflict:
       description: The request could not be completed due to a conflict with the current state of the resource (e.g. username already taken)
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
     InternalServerError:
       description: The server encountered an internal error. Further info in server logs
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/ErrorResponse"
 
   #--------Security--------
   securitySchemes:
