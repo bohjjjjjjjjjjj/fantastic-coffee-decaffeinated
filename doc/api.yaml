@@ -311,18 +311,7 @@ paths:
                     dataLastMessage: "2026-03-30T10:00:00Z"
                     snippet: "Ciao!"
               schema:
-                type: object
-                description: Risposta contenente le conversazioni
-                required:
-                  - conversations
-                properties:
-                  conversations:
-                    type: array
-                    description: Elenco delle conversazioni attive
-                    minItems: 0
-                    maxItems: 500
-                    items:
-                      $ref: "#/components/schemas/Conversation"
+                $ref: "#/components/schemas/ConversationList"
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
@@ -352,18 +341,7 @@ paths:
                     content:
                       text: "Ciao!"
               schema:
-                type: object
-                description: Oggetto contenente la lista dei messaggi
-                required:
-                  - messages
-                properties:
-                  messages:
-                    type: array
-                    description: Elenco dei messaggi all'interno della conversazione
-                    minItems: 0
-                    maxItems: 1000
-                    items:
-                      $ref: "#/components/schemas/Message"
+                $ref: "#/components/schemas/MessageList"
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
@@ -1112,6 +1090,37 @@ components:
           description: Descrizione dell'errore
           example: "Risorsa non trovata"
 
+    ConversationList:
+        title: Conversation List 
+        description: Oggetto contenente la lista delle conversazioni dell'utente
+        type: object
+        required:
+          - conversations
+        properties:
+          conversations:
+            type: array
+            description: Elenco delle conversazioni attive
+            minItems: 0
+            maxItems: 500
+            items:
+              $ref: "#/components/schemas/Conversation"
+
+    
+    MessageList:
+      title: Message List 
+      description: Oggetto contenente la lista dei messaggi di una conversazione
+      type: object
+      required:
+        - messages
+      properties:
+        messages:
+          type: array
+          description: Elenco dei messaggi all'interno della conversazione
+          minItems: 0
+          maxItems: 1000
+          items:
+            $ref: "#/components/schemas/Message"
+
   #--------Responses--------
   responses:
     Unauthorized:
@@ -1199,3 +1208,6 @@ components:
       in: path
       required: true
       description: The ID of the reaction to remove
+
+
+    
