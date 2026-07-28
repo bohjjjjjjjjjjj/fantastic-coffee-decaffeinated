@@ -6,7 +6,117 @@ info:
   description: Fantastic Coffee (decaffeinated), the skeleton project for Web and Software architecture course
   version: 1.0.0
 
+tags:
+  - name: Session
+    description: Operazioni di autenticazione e gestione sessione
+  - name: Profilo
+    description: Gestione del profilo utente e ricerca
+  - name: Conversations
+    description: Gestione delle conversazioni
+  - name: Messages
+    description: Invio, inoltro ed eliminazione messaggi
+  - name: Reactions
+    description: Gestione delle reazioni ai messaggi
+  - name: Group
+    description: Creazione e gestione dei gruppi
+
 paths:
+
+#--------Sessione / Auth--------
+  /session:
+    post:
+      tags: ["Session"]
+      operationId: doLogin
+      summary: Login o registrazione utente
+      description: |-
+        Crea una nuova sessione per l'utente fornendo un nome utente.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              description: Oggetto contenente il nome utente per effettuare il login
+              required:
+                - name
+              properties:
+                name:
+                  type: string
+                  description: Nome utente per il login
+                  minLength: 3
+                  maxLength: 30
+                  pattern: "^[a-zA-Z0-9_]+$"
+                  example: "mario_rossi"
+      responses:
+        "200":
+          description: Login effettuato con successo (utente esistente)
+          content:
+            application/json:
+              schema:
+                type: object
+                description: Risposta con l'identificatore di sessione
+                required:
+                  - identifier
+                properties:
+                  identifier:
+                    type: string
+                    description: Token/ID di sessione generato
+                    minLength: 1
+                    maxLength: 256
+                    pattern: "^[a-zA-Z0-9\\-_.]+$"
+        "201":
+          description: Utente creato e login effettuato con successo
+          content:
+            application/json:
+              schema:
+                type: object
+                description: Risposta con l'identificatore di sessione per il nuovo utente
+                required:
+                  - identifier
+                properties:
+                  identifier:
+                    type: string
+                    description: Token/ID di sessione generato
+                    minLength: 1
+                    maxLength: 256
+                    pattern: "^[a-zA-Z0-9\\-_.]+$"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+
+#--------Ricerca Utenti--------
+  /users:
+    get:
+      tags: ["Profilo"]
+      operationId: searchUsers
+      summary: Search WasaText users
+      description: |-
+        Cerca altri utenti registrati tramite username.
+      security:
+        - BearerAuth: []
+      parameters:
+        - name: username
+          in: query
+          required: false
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 30
+            pattern: "^[a-zA-Z0-9_]+$"
+          description: Username da cercare
+      responses:
+        "200":
+          description: Lista degli utenti trovati
+          content:
+            application/json:
+              schema:
+                type: array
+                description: Elenco degli utenti trovati
+                minItems: 0
+                maxItems: 100
+                items:
+                  $ref: "#/components/schemas/user"
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
 
 #--------Profilo--------
   /user/username:
@@ -17,14 +127,14 @@ paths:
       description: |-
         Aggiorna il nome visualizzato dall'utente.
       security:
-        - LegacyAuth: []
+        - BearerAuth: []
 
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              { $ref: "#/components/schemas/userName" }
+              $ref: "#/components/schemas/userName"
               
       responses:
         "200":
@@ -32,7 +142,7 @@ paths:
           content:
             application/json:
               schema:
-                { $ref: "#/components/schemas/userName" }
+                $ref: "#/components/schemas/userName"
 
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
@@ -45,26 +155,25 @@ paths:
       description: |-
         Aggiorna la foto profilo dell'utente.
       security:
-        - LegacyAuth: []
+        - BearerAuth: []
       
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              { $ref: "#/components/schemas/userPhoto" }
+              $ref: "#/components/schemas/userPhoto"
 
       responses:
         "200":
-          description: Successful retrieval of WasaText profile username
+          description: Successful retrieval of WasaText profile photo
           content:
             application/json:
               schema:
-                { $ref: "#/components/schemas/userPhoto" }
+                $ref: "#/components/schemas/userPhoto"
 
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
-
 
     get:
       tags: ["Profilo"]
@@ -73,7 +182,7 @@ paths:
       description: |-
         Ottiene la foto profilo dell'utente.
       security:
-        - LegacyAuth: []
+        - BearerAuth: []
       
       responses:
         "200":
@@ -81,7 +190,7 @@ paths:
           content:
             application/json:
               schema:
-                { $ref: "#/components/schemas/userPhoto" }
+                $ref: "#/components/schemas/userPhoto"
 
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
@@ -94,7 +203,7 @@ paths:
       description: |-
         Ottiene le informazioni del profilo dell'utente.
       security:
-        - LegacyAuth: []
+        - BearerAuth: []
       
       responses:
         "200":
@@ -102,7 +211,7 @@ paths:
           content:
             application/json:
               schema:
-                { $ref: "#/components/schemas/user" }
+                $ref: "#/components/schemas/user"
 
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
@@ -118,18 +227,23 @@ paths:
       description: |-
         Crea una nuova chat con un altro utente.
       security:
-        - LegacyAuth: []
+        - BearerAuth: []
       requestBody:
+        required: true
         content:
           application/json:
             schema:
               type: object
+              description: Payload per la creazione di una nuova conversazione
               required:
                 - username
               properties:
                 username:
                   type: string
-                  description: Username of the user to start a conversation with
+                  description: Username dell'utente con cui iniziare la chat
+                  minLength: 3
+                  maxLength: 30
+                  pattern: "^[a-zA-Z0-9_]+$"
       responses:
         "200":
           description: Conversation created successfully
@@ -143,7 +257,7 @@ paths:
       description: |-
         Ottiene la lista delle chat (ordine cronologico inverso).
       security:
-        - LegacyAuth: []
+        - BearerAuth: []
       responses:
         "200":
           description: Successful retrieval of WasaText messages
@@ -151,8 +265,11 @@ paths:
             application/json:
               schema:
                 type: array
+                description: Elenco delle conversazioni attive
+                minItems: 0
+                maxItems: 500
                 items:
-                  { $ref: "#/components/schemas/conversation"}
+                  $ref: "#/components/schemas/conversation"
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
@@ -166,7 +283,7 @@ paths:
       parameters:
         - $ref: "#/components/parameters/conversationId"
       security:
-        - LegacyAuth: []
+        - BearerAuth: []
       responses:
         "200":
           description: Successful retrieval of WasaText messages
@@ -174,39 +291,39 @@ paths:
             application/json:
               schema:
                 type: array
+                description: Elenco dei messaggi all'interno della conversazione
+                minItems: 0
+                maxItems: 1000
                 items:
-                  {$ref: "#/components/schemas/message"}
+                  $ref: "#/components/schemas/message"
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 #--------End Conversations--------
 
 #--------Messages--------
-  
-
   /conversations/{conversationId}/messages:
     parameters:
-        - $ref: "#/components/parameters/conversationId"
+      - $ref: "#/components/parameters/conversationId"
     post:
       tags: ["Messages"]
       operationId: sendMessage
       summary: Send a WasaText message
       description: |-
-        Invia un nuovo messaggio di testo o foto una chat specifica.
+        Invia un nuovo messaggio di testo o foto in una chat specifica.
       security:
-        - LegacyAuth: []
-      
+        - BearerAuth: []
 
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              {$ref: "#/components/schemas/NewMessageRequest"}
+              $ref: "#/components/schemas/NewMessageRequest"
       responses:
         "200":
           description: Message sent successfully
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
-
 
   /conversations/{conversationId}/messages/{messageId}/forward:
     post:
@@ -216,16 +333,17 @@ paths:
       description: |-
         Inoltra un messaggio di testo o foto a un'altra chat.
       security:
-        - LegacyAuth: []
+        - BearerAuth: []
       parameters:
         - $ref: "#/components/parameters/conversationId"
         - $ref: "#/components/parameters/messageId"
 
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              {$ref: "#/components/schemas/messageForward"}
+              $ref: "#/components/schemas/messageForward"
       responses:
         "200":
           description: Message forwarded successfully
@@ -234,8 +352,8 @@ paths:
   
   /conversations/{conversationId}/messages/{messageId}:
     parameters:
-        - $ref: "#/components/parameters/conversationId"
-        - $ref: "#/components/parameters/messageId"
+      - $ref: "#/components/parameters/conversationId"
+      - $ref: "#/components/parameters/messageId"
 
     delete:
       tags: ["Messages"]
@@ -243,9 +361,8 @@ paths:
       summary: Delete a WasaText message
       description: |-
         Elimina un messaggio di testo o foto da una chat specifica.
-      
       security:
-        - LegacyAuth: []
+        - BearerAuth: []
       responses:
         "200":
           description: Message deleted successfully
@@ -253,25 +370,25 @@ paths:
         "500": { $ref: "#/components/responses/InternalServerError" }
 #--------End Messages--------
 
-#--------Reaction-------
+#--------Reactions-------
   /conversations/{conversationId}/messages/{messageId}/reactions:
     parameters:
-      - $ref: "#/components/parameters/messageId"
       - $ref: "#/components/parameters/conversationId"
+      - $ref: "#/components/parameters/messageId"
     post:
       tags: ["Reactions"]
       operationId: commentMessage
       summary: Add a reaction to a WasaText message
       description: |-
         Aggiunge una reazione (like, love, etc.) a un messaggio di testo o foto.
-      
       security:
-        - LegacyAuth: []
+        - BearerAuth: []
       requestBody:
+        required: true
         content:
           application/json:
             schema:
-              { $ref: "#/components/schemas/reaction"} 
+              $ref: "#/components/schemas/reaction"
 
       responses:
         "200":
@@ -279,12 +396,16 @@ paths:
           content:
             application/json:
               schema:
-                { $ref: "#/components/schemas/reactionList"}
+                $ref: "#/components/schemas/reactionList"
 
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
-  /conversations/{conversationId}/messages/{messageId}/reactions{reactionsId}:
+  /conversations/{conversationId}/messages/{messageId}/reactions/{reactionId}:
+    parameters:
+      - $ref: "#/components/parameters/conversationId"
+      - $ref: "#/components/parameters/messageId"
+      - $ref: "#/components/parameters/reactionId"
     delete:
       tags: ["Reactions"]
       operationId: uncommentMessage
@@ -292,14 +413,14 @@ paths:
       description: |-
         Rimuove una reazione (like, love, etc.) da un messaggio di testo o foto.
       security:
-        - LegacyAuth: []
+        - BearerAuth: []
       responses:
         "200":
           description: Reaction removed successfully
           content:
             application/json:
               schema:
-                { $ref: "#/components/schemas/reactionList"}
+                $ref: "#/components/schemas/reactionList"
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 #--------End Reactions------
@@ -313,7 +434,7 @@ paths:
       description: |-
         Crea un nuovo gruppo di WasaText.
       security:
-        - LegacyAuth: []
+        - BearerAuth: []
 
       requestBody:
         required: true
@@ -321,12 +442,16 @@ paths:
           application/json:
             schema:
               type: object
+              description: Payload per creare un gruppo
               required:
                 - name
               properties:
                 name:
                   type: string
                   description: Name of the group to be created
+                  minLength: 1
+                  maxLength: 50
+                  pattern: "^[a-zA-Z0-9_ ]+$"
       responses:
         "200":
           description: Successful creation of WasaText group
@@ -341,34 +466,47 @@ paths:
       operationId: getGroupDetails
       summary: Retrieve WasaText group details 
       description: |-
-            Ottiene i dettagli di un gruppo specifico.
+        Ottiene i dettagli di un gruppo specifico.
       security:
-        - LegacyAuth: []
+        - BearerAuth: []
       responses:
         "200":
           description: Successful retrieval of group details
           content:
             application/json:
-             schema:
-              type: object
-              required:
+              schema:
+                type: object
+                description: Dettagli completi del gruppo
+                required:
                   - id
                   - name
                   - photoUrl
-              properties:
+                properties:
                   id:
                     type: string
+                    description: ID univoco del gruppo
+                    minLength: 1
+                    maxLength: 64
+                    pattern: "^[a-zA-Z0-9_\\-]+$"
                   name:
                     type: string
+                    description: Nome del gruppo
+                    minLength: 1
+                    maxLength: 50
+                    pattern: "^[a-zA-Z0-9_ ]+$"
                   photoUrl:
                     type: string
+                    description: URL della foto di copertina del gruppo
                     format: url
+                    minLength: 10
+                    maxLength: 2048
+                    pattern: "^https?://.+"
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
   
   /groups/{groupId}/members:
     parameters:
-        - $ref: "#/components/parameters/groupId"
+      - $ref: "#/components/parameters/groupId"
 
     post:
       tags: ["Group"]
@@ -377,27 +515,27 @@ paths:
       description: |-
         Aggiunge membri in un gruppo specifico.
       security:
-        - LegacyAuth: []
+        - BearerAuth: []
 
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              { $ref: "#/components/schemas/memberIdList"}
+              $ref: "#/components/schemas/memberIdList"
       responses:
         "200":
           description: Successful retrieval of group members
           content:
             application/json:
               schema:
-                {$ref: "#/components/schemas/groupMemberListResponse" }
+                $ref: "#/components/schemas/groupMemberListResponse"
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
   
   /groups/{groupId}/members/me:
     parameters:
-        - $ref: "#/components/parameters/groupId"
+      - $ref: "#/components/parameters/groupId"
     delete:
       tags: ["Group"]
       operationId: leaveGroup
@@ -405,8 +543,7 @@ paths:
       description: |-
         Permette all'utente di uscire da un gruppo specifico.
       security:
-        - LegacyAuth: []
-      
+        - BearerAuth: []
 
       responses:
         "200":
@@ -416,7 +553,7 @@ paths:
 
   /groups/{groupId}/name:
     parameters:
-        - $ref: "#/components/parameters/groupId"
+      - $ref: "#/components/parameters/groupId"
     put:
       tags: ["Group"]
       operationId: setGroupName
@@ -424,14 +561,14 @@ paths:
       description: |-
         Aggiorna il nome del gruppo.
       security:
-        - LegacyAuth: []
+        - BearerAuth: []
 
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              {$ref: "#/components/schemas/groupName" }
+              $ref: "#/components/schemas/groupName"
 
       responses:
         "200":
@@ -441,7 +578,7 @@ paths:
   
   /groups/{groupId}/photo:
     parameters:
-        - $ref: "#/components/parameters/groupId"
+      - $ref: "#/components/parameters/groupId"
 
     put:
       tags: ["Group"]
@@ -450,62 +587,96 @@ paths:
       description: |-
         Aggiorna la foto del gruppo.
       security:
-        - LegacyAuth: []
+        - BearerAuth: []
 
       requestBody:
         required: true
         content:
           application/json:
             schema:
-              {$ref: "#/components/schemas/groupPhoto" }
+              $ref: "#/components/schemas/groupPhoto"
       
       responses:
         "200":
           description: Successful update of group photo
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
+
 #--------Components--------
 components:
   schemas:
     StatusInfo:
       title: Status Info
+      description: Informazioni sullo stato di sistema o di un'operazione
       type: object
       properties:
         status:
           type: string
+          description: Livello di gravità dello stato
           enum:
             - info
             - warning
             - critical
             - ""
-        title: { type: string }
-        message: { type: string }
-        url: { type: string }
-    #--------Inisio della mia schema
+        title:
+          type: string
+          description: Titolo dello stato
+          minLength: 1
+          maxLength: 100
+          pattern: "^[a-zA-Z0-9_ ]+$"
+        message:
+          type: string
+          description: Messaggio di dettaglio dello stato
+          minLength: 1
+          maxLength: 500
+          pattern: "^.+$"
+        url:
+          type: string
+          description: URL con maggiori informazioni
+          format: url
+          minLength: 10
+          maxLength: 2048
+          pattern: "^https?://.+"
+
     groupMemberListResponse:
       title: Group Member List
       description: Lista aggiornata dei membri del gruppo.
       type: object
       required: ['members']
       properties:
-       members:
-        type: array
-        items:
-         { $ref: "#/components/schemas/user" } # Usa lo schema user completo
+        members:
+          type: array
+          description: Elenco degli utenti membri del gruppo
+          minItems: 1
+          maxItems: 100
+          items:
+            $ref: "#/components/schemas/user"
 
     user:
+      title: User
+      description: Informazioni di base di un utente
       type: object
       required: ['id', 'username']
       properties:
         id:
           type: string
+          description: Identificatore univoco utente
+          minLength: 1
+          maxLength: 64
+          pattern: "^[a-zA-Z0-9_\\-]+$"
         username:
           type: string
+          description: Nome utente univoco
+          minLength: 3
+          maxLength: 30
+          pattern: "^[a-zA-Z0-9_]+$"
         photoUrl:
           type: string
+          description: URL della foto profilo dell'utente
           format: url
-
-        
+          minLength: 10
+          maxLength: 2048
+          pattern: "^https?://.+"
 
     conversation:
       title: Conversation
@@ -520,38 +691,65 @@ components:
       properties:
         id:
           type: string
+          description: ID univoco della conversazione
+          minLength: 1
+          maxLength: 64
+          pattern: "^[a-zA-Z0-9_\\-]+$"
         username:
           type: string
+          description: Nome dell'interlocutore o del gruppo
+          minLength: 1
+          maxLength: 50
+          pattern: "^[a-zA-Z0-9_ ]+$"
         photo:
           type: string
+          description: Foto dell'interlocutore o del gruppo
           format: url
+          minLength: 10
+          maxLength: 2048
+          pattern: "^https?://.+"
         dataLastMessage:
           type: string
+          description: Data e ora dell'ultimo messaggio inviato o ricevuto
           format: date-time
+          minLength: 20
+          maxLength: 35
+          pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
         snippet:
           type: string
-          description: Message content (text or photo)
+          description: Anteprima dell'ultimo messaggio (testo o notifica foto)
+          minLength: 0
+          maxLength: 200
+          pattern: "^.*$"
           
     userName:
       type: object
       title: UserName
-      description:  new username profile
+      description: New username profile
       required: 
         - username
       properties:
         username:
           type: string
+          description: Nuovo username da impostare nel profilo
+          minLength: 3
+          maxLength: 30
+          pattern: "^[a-zA-Z0-9_]+$"
 
     userPhoto:
       type: object
       title: UserPhoto
-      description:  new photo profile
+      description: New photo profile
       required: 
         - photoUrl
       properties:
         photoUrl:
           type: string
+          description: URL della nuova foto profilo da impostare
           format: url
+          minLength: 10
+          maxLength: 2048
+          pattern: "^https?://.+"
     
     message:
       type: object
@@ -566,34 +764,49 @@ components:
       properties:
         id:
           type: string
+          description: Identificatore univoco del messaggio
+          minLength: 1
+          maxLength: 64
+          pattern: "^[a-zA-Z0-9_\\-]+$"
         content:
           type: object
-          description: Message content (text or photo)
+          description: Contenuto del messaggio (testo o foto)
           oneOf:
             - $ref: "#/components/schemas/TextMessageContent"
             - $ref: "#/components/schemas/PhotoMessageContent"
         senderUsername:
           type: string
+          description: Username del mittente del messaggio
+          minLength: 3
+          maxLength: 30
+          pattern: "^[a-zA-Z0-9_]+$"
         dataSent:
           type: string
+          description: Data e ora di invio del messaggio
           format: date-time
+          minLength: 20
+          maxLength: 35
+          pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
         status:
-          {$ref: "#/components/schemas/statusMessage"}
+          $ref: "#/components/schemas/statusMessage"
         reaction:
           type: array
-          description: Lista della reasioni
+          description: Lista delle reazioni associate al messaggio
+          minItems: 0
+          maxItems: 100
           items:
-            { $ref: "#/components/schemas/reaction" }
+            $ref: "#/components/schemas/reaction"
     
     statusMessage:
       type: object
       title: StatusMessage
-      description: Descrive the status of the sms
+      description: Descrive lo stato di consegna e lettura del messaggio
       required:
         - status
       properties:
         status:
           type: string
+          description: Stato corrente del messaggio
           enum:
             - sent
             - delivered
@@ -610,10 +823,14 @@ components:
         text:
           type: string
           description: Il contenuto del messaggio di testo.
+          minLength: 1
+          maxLength: 2000
+          pattern: "^[\\s\\S]+$"
           example: Ciao a tutti!
 
     PhotoMessageContent:
       title: Contenuto Foto
+      description: Contenuto di un messaggio di tipo immagine.
       type: object
       required: 
         - photoUrl
@@ -622,6 +839,9 @@ components:
           type: string
           format: url
           description: URL della foto inviata.
+          minLength: 10
+          maxLength: 2048
+          pattern: "^https?://.+"
           example: https://wasatext.com/media/photo123.jpg
 
     messageForward:
@@ -634,12 +854,22 @@ components:
       properties:
         messageId:
           type: string
+          description: ID del messaggio originale da inoltrare
+          minLength: 1
+          maxLength: 64
+          pattern: "^[a-zA-Z0-9_\\-]+$"
           example: "msg_12345"
         targetConversationId:
           type: string
+          description: ID della conversazione di destinazione dell'inoltro
+          minLength: 1
+          maxLength: 64
+          pattern: "^[a-zA-Z0-9_\\-]+$"
           example: "conv_67890"
       
     reaction:
+      title: Reaction
+      description: Reazione emoji inviata da un utente a un messaggio
       type: object
       required: 
         - reactionType
@@ -647,32 +877,57 @@ components:
       properties:
         reactionType:
           type: string
+          description: Tipo/Emoji di reazione utilizzata
+          minLength: 1
+          maxLength: 20
+          pattern: "^.+$"
           example: "like"
         userSenderId:
           type: string
+          description: ID dell'utente che ha aggiunto la reazione
+          minLength: 1
+          maxLength: 64
+          pattern: "^[a-zA-Z0-9_\\-]+$"
           example: "user_67890"
 
     memberIdList:
+      title: Member ID List
+      description: Elenco degli ID degli utenti da aggiungere al gruppo
       type: object
       required: 
         - memberIds
       properties:
         memberIds:
           type: array
+          description: Vettore di stringhe contenente gli ID degli utenti
+          minItems: 1
+          maxItems: 50
           items:
             type: string
-          example: ["user_12345", "user_67890"]  
+            description: Identificatore univoco di un utente
+            minLength: 1
+            maxLength: 64
+            pattern: "^[a-zA-Z0-9_\\-]+$"
+          example: ["user_12345", "user_67890"]
     
     groupName:
+      title: Group Name
+      description: Nome aggiornato del gruppo
       type: object
       required: 
         - name
       properties:
         name: 
-         type: string
-         example: "Friends Group"
+          type: string
+          description: Nuovo nome del gruppo
+          minLength: 1
+          maxLength: 50
+          pattern: "^[a-zA-Z0-9_ ]+$"
+          example: "Friends Group"
 
     groupPhoto:
+      title: Group Photo
+      description: URL aggiornato della foto di profilo del gruppo
       type: object
       required: 
         - photoUrl
@@ -680,22 +935,33 @@ components:
         photoUrl:
           type: string
           format: url
+          description: URL della foto del gruppo
+          minLength: 10
+          maxLength: 2048
+          pattern: "^https?://.+"
           example: "https://example.com/group_photo.jpg"
 
     reactionList:
+      title: Reaction List
+      description: Elenco completo delle reazioni applicate a un messaggio
       type: object
       required: 
         - reactions
       properties:
         reactions:
           type: array
+          description: Array contenente gli oggetti reazione
+          minItems: 0
+          maxItems: 100
           items:
-            { $ref: "#/components/schemas/reaction" }
+            $ref: "#/components/schemas/reaction"
       
     NewMessageRequest:
+      title: New Message Request
+      description: Payload per inviare un nuovo messaggio in una conversazione
       type: object
       required: 
-      - content
+        - content
       properties:
         content:
           type: object
@@ -705,9 +971,12 @@ components:
             - $ref: "#/components/schemas/PhotoMessageContent"
         replyToMessageId:
           type: string
-          description: ID of the message being replied to 
+          description: ID of the message being replied to
+          minLength: 1
+          maxLength: 64
+          pattern: "^[a-zA-Z0-9_\\-]+$"
 
-#----------------------------------------------------
+  #--------Responses--------
   responses:
     Unauthorized:
       description: The access token is missing or it's expired
@@ -716,20 +985,22 @@ components:
     InternalServerError:
       description: The server encountered an internal error. Further info in server logs
 
-  
-
+  #--------Security--------
   securitySchemes:
-    # 1. Definisci il nome dello schema
     BearerAuth:
-      type: http            # Il tipo di meccanismo è l'autenticazione HTTP
-      scheme: bearer        # Lo schema specifico è un Bearer Token
-      bearerFormat: JWT     # (Opzionale, ma consigliato) Indica che il formato del token è un JWT
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
       description: Il token di sessione ottenuto dall'operazione 'doLogin' deve essere incluso nell'header 'Authorization' per tutte le richieste protette, nel formato 'Bearer <token>'.
-#----------Parameters------
+
+  #--------Parameters--------
   parameters:
     conversationId:
       schema:
-          type: string
+        type: string
+        minLength: 1
+        maxLength: 64
+        pattern: "^[a-zA-Z0-9_\\-]+$"
       description: The ID of the conversation to retrieve messages from
       name: conversationId
       in: path
@@ -737,7 +1008,10 @@ components:
         
     groupId: 
       schema:
-          type: string
+        type: string
+        minLength: 1
+        maxLength: 64
+        pattern: "^[a-zA-Z0-9_\\-]+$"
       description: The ID of the group to change photo 
       name: groupId
       in: path
@@ -746,17 +1020,21 @@ components:
     messageId:
       schema:
         type: string
+        minLength: 1
+        maxLength: 64
+        pattern: "^[a-zA-Z0-9_\\-]+$"
       name: messageId
       in: path
       required: true
-      description: The ID of the message to add a reaction to
-              
-       
-          
+      description: The ID of the message
 
-
-
-
-
-
-
+    reactionId:
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 64
+        pattern: "^[a-zA-Z0-9_\\-]+$"
+      name: reactionId
+      in: path
+      required: true
+      description: The ID of the reaction to remove
