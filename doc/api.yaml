@@ -274,7 +274,7 @@ paths:
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/Conversation"
+                $ref: "#/components/schemas/ConversationDetails"
               examples:
                 ConversationCreated:
                   summary: Esempio di conversazione creata
@@ -282,25 +282,25 @@ paths:
                     id: "conv_123"
                     username: "luigi_verdi"
                     photo: "https://example.com/luigi.jpg"
-                    dataLastMessage: "2026-03-30T10:00:00Z"
-                    snippet: "Ciao!"
+                    messages: []
               
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
+
     get:
       tags: ["Conversations"]
       operationId: getMyConversations
-      summary: Retrieve WasaText list of conversation
+      summary: Retrieve WasaText conversations
       description: |-
-        Ottiene la lista delle chat (ordine cronologico inverso).
+        Ottiene l'elenco di tutte le conversazioni dell'utente autenticato.
       security:
         - BearerAuth: []
       responses:
         "200":
-          description: Successful retrieval of WasaText messages
+          description: Successful retrieval of WasaText conversations
           content:
             application/json:
               example:
@@ -308,11 +308,9 @@ paths:
                   - id: "conv_123"
                     username: "luigi_verdi"
                     photo: "https://example.com/luigi.jpg"
-                    dataLastMessage: "2026-03-30T10:00:00Z"
-                    snippet: "Ciao!"
               schema:
                 type: object
-                description: Risposta contenente le conversazioni
+                description: Lista delle conversazioni dell'utente
                 required:
                   - conversations
                 properties:
@@ -320,9 +318,9 @@ paths:
                     type: array
                     description: Elenco delle conversazioni attive
                     minItems: 0
-                    maxItems: 500
+                    maxItems: 100
                     items:
-                      $ref: "#/components/schemas/Conversation"
+                      $ref: "#/components/schemas/ConversationDetailsSummary"
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
@@ -332,17 +330,20 @@ paths:
       operationId: getConversation
       summary: Retrieve WasaText conversation messages
       description: |-
-        Ottiene i messaggi di una chat specifica.
+        Ottiene i dettagli e i messaggi di una chat specifica.
       parameters:
         - $ref: "#/components/parameters/conversationId"
       security:
         - BearerAuth: []
       responses:
         "200":
-          description: Successful retrieval of WasaText messages
+          description: Successful retrieval of WasaText conversation
           content:
             application/json:
               example:
+                id: "conv_123"
+                username: "luigi_verdi"
+                photo: "https://example.com/luigi.jpg"
                 messages:
                   - id: "msg_100"
                     senderUsername: "mario_rossi"
@@ -352,21 +353,11 @@ paths:
                     content:
                       text: "Ciao!"
               schema:
-                type: object
-                description: Oggetto contenente la lista dei messaggi
-                required:
-                  - messages
-                properties:
-                  messages:
-                    type: array
-                    description: Elenco dei messaggi all'interno della conversazione
-                    minItems: 0
-                    maxItems: 1000
-                    items:
-                      $ref: "#/components/schemas/Message"
+                $ref: "#/components/schemas/ConversationDetails"
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
+
 
 #--------Messages--------
   /conversations/{conversationId}/messages:
@@ -807,49 +798,8 @@ components:
           maxLength: 2048
           pattern: "^https?://.+"
 
-    Conversation:
-      title: Conversation
-      description: WasaText conversation summary
-      type: object
-      required:
-        - id
-        - username
-        - photo
-        - dataLastMessage
-        - snippet
-      properties:
-        id:
-          type: string
-          description: ID univoco della conversazione
-          minLength: 1
-          maxLength: 64
-          pattern: "^[a-zA-Z0-9_\\-]+$"
-        username:
-          type: string
-          description: Nome dell'interlocutore o del gruppo
-          minLength: 1
-          maxLength: 50
-          pattern: "^[a-zA-Z0-9_ ]+$"
-        photo:
-          type: string
-          description: Foto dell'interlocutore o del gruppo
-          format: url
-          minLength: 10
-          maxLength: 2048
-          pattern: "^https?://.+"
-        dataLastMessage:
-          type: string
-          description: Data e ora dell'ultimo messaggio inviato o ricevuto
-          format: date-time
-          minLength: 20
-          maxLength: 35
-          pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
-        snippet:
-          type: string
-          description: Anteprima dell'ultimo messaggio (testo o notifica foto)
-          minLength: 0
-          maxLength: 200
-          pattern: "^.*$"
+    
+          
           
     UserName:
       type: object
@@ -1112,6 +1062,73 @@ components:
           description: Descrizione dell'errore
           example: "Risorsa non trovata"
 
+
+    ConversationDetails:
+      title: Conversation Details
+      description: Risorsa canonica contenente i dettagli della conversazione e la lista dei messaggi
+      type: object
+      required:
+        - id
+        - username
+        - photo
+        - messages
+      properties:
+        id:
+          type: string
+          description: ID univoco della conversazione
+          minLength: 1
+          maxLength: 64
+          pattern: "^[a-zA-Z0-9_\\-]+$"
+        username:
+          type: string
+          description: Nome dell'interlocutore o del gruppo
+          minLength: 1
+          maxLength: 50
+          pattern: "^[a-zA-Z0-9_ ]+$"
+        photo:
+          type: string
+          description: Foto dell'interlocutore o del gruppo
+          format: url
+          minLength: 10
+          maxLength: 2048
+          pattern: "^https?://.+"
+        messages:
+          type: array
+          description: Elenco dei messaggi all'interno della conversazione
+          minItems: 0
+          maxItems: 1000
+          items:
+            $ref: "#/components/schemas/Message"
+
+    ConversationDetailsSummary:
+      title: Conversation Summary
+      description: Sintesi di una conversazione per la lista chat
+      type: object
+      required:
+        - id
+        - username
+        - photo
+      properties:
+        id:
+          type: string
+          description: ID univoco della conversazione
+          minLength: 1
+          maxLength: 64
+          pattern: "^[a-zA-Z0-9_\\-]+$"
+        username:
+          type: string
+          description: Nome dell'interlocutore o del gruppo
+          minLength: 1
+          maxLength: 50
+          pattern: "^[a-zA-Z0-9_ ]+$"
+        photo:
+          type: string
+          description: Foto dell'interlocutore o del gruppo
+          format: url
+          minLength: 10
+          maxLength: 2048
+          pattern: "^https?://.+"
+
   #--------Responses--------
   responses:
     Unauthorized:
@@ -1199,3 +1216,6 @@ components:
       in: path
       required: true
       description: The ID of the reaction to remove
+
+
+      
