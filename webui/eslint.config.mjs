@@ -10,18 +10,6 @@ import vue from 'eslint-plugin-vue';
 
 // noinspection JSUnusedGlobalSymbols
 export default [
-	// Ignori globali: file di terze parti e artefatti generati, non codice del
-	// progetto. Senza questi, `eslint .` analizza la copia vendored di Bootstrap
-	// (public/bootstrap/js) e il binario di Yarn (.yarn/releases), segnalando
-	// problemi che non appartengono al sorgente dell'applicazione.
-	// Le regole sotto restano identiche alla configurazione fornita dal progetto.
-	{
-		ignores: [
-			'.yarn/**',
-			'dist/**',
-			'public/bootstrap/**'
-		]
-	},
 	... vue.configs[ "flat/recommended" ],
 	{
 		rules: {
