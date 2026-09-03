@@ -11,12 +11,12 @@ import (
 
 // SendMessage salva un nuovo messaggio nella conversazione. L'utente deve farne
 // parte, altrimenti viene restituito ErrNotFound.
-func (db *appdbimpl) SendMessage(convID, senderID, cType, cVal, replyToID string) (Message, error) {
-	return db.insertMessage(convID, senderID, cType, cVal, replyToID, false)
+func (db *appdbimpl) SendMessage(convID, senderID, text, photo, replyToID string) (Message, error) {
+	return db.insertMessage(convID, senderID, text, photo, replyToID, false)
 }
 
 // insertMessage inserisce un messaggio, marcandolo come inoltrato quando serve.
-func (db *appdbimpl) insertMessage(convID, senderID, cType, cVal, replyToID string, forwarded bool) (Message, error) {
+func (db *appdbimpl) insertMessage(convID, senderID, text, photo, replyToID string, forwarded bool) (Message, error) {
 	var msg Message
 
 	member, err := db.isMember(convID, senderID)
@@ -53,9 +53,9 @@ func (db *appdbimpl) insertMessage(convID, senderID, cType, cVal, replyToID stri
 	}
 
 	_, err = db.c.Exec(`
-		INSERT INTO messages (id, conversation_id, sender_id, content_type, content_value, reply_to_message_id, is_forwarded, data_sent)
+		INSERT INTO messages (id, conversation_id, sender_id, content_text, content_photo, reply_to_message_id, is_forwarded, data_sent)
 		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		msgID, convID, senderID, cType, cVal, replyValue, forwarded, now)
+		msgID, convID, senderID, text, photo, replyValue, forwarded, now)
 	if err != nil {
 		return msg, fmt.Errorf("error inserting message: %w", err)
 	}
@@ -70,8 +70,8 @@ func (db *appdbimpl) insertMessage(convID, senderID, cType, cVal, replyToID stri
 		ConversationID:   convID,
 		SenderID:         senderID,
 		SenderUsername:   senderUsername,
-		ContentType:      cType,
-		ContentValue:     cVal,
+		ContentText:      text,
+		ContentPhoto:     photo,
 		ReplyToMessageID: replyToID,
 		IsForwarded:      forwarded,
 		DataSent:         now,
@@ -85,11 +85,11 @@ func (db *appdbimpl) insertMessage(convID, senderID, cType, cVal, replyToID stri
 func (db *appdbimpl) ForwardMessage(originalMsgID, targetConvID, senderID string) (Message, error) {
 	var msg Message
 
-	var srcConvID, cType, cVal string
+	var srcConvID, text, photo string
 	err := db.c.QueryRow(
-		"SELECT conversation_id, content_type, content_value FROM messages WHERE id = ?",
+		"SELECT conversation_id, content_text, content_photo FROM messages WHERE id = ?",
 		originalMsgID,
-	).Scan(&srcConvID, &cType, &cVal)
+	).Scan(&srcConvID, &text, &photo)
 	if errors.Is(err, sql.ErrNoRows) {
 		return msg, ErrNotFound
 	} else if err != nil {
@@ -104,7 +104,7 @@ func (db *appdbimpl) ForwardMessage(originalMsgID, targetConvID, senderID string
 		return msg, ErrNotFound
 	}
 
-	return db.insertMessage(targetConvID, senderID, cType, cVal, "", true)
+	return db.insertMessage(targetConvID, senderID, text, photo, "", true)
 }
 
 // DeleteMessage elimina un messaggio inviato dall'utente. La proprietà è legata

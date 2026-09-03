@@ -752,6 +752,70 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
+#--------Media--------
+  /media:
+    post:
+      tags: ["Messages"]
+      operationId: uploadMedia
+      summary: Upload an image
+      description: |-
+        Carica un'immagine (PNG, JPEG, GIF o WebP, max 8 MB) inviandone i byte
+        grezzi nel corpo della richiesta. L'URL restituito può essere usato come
+        photoUrl in un messaggio, nella foto profilo o nella foto di un gruppo.
+        Il formato viene riconosciuto dal contenuto del file, non dall'header.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        description: Byte grezzi del file immagine
+        content:
+          image/png:
+            schema: { $ref: "#/components/schemas/BinaryImage" }
+          image/jpeg:
+            schema: { $ref: "#/components/schemas/BinaryImage" }
+          image/gif:
+            schema: { $ref: "#/components/schemas/BinaryImage" }
+          image/webp:
+            schema: { $ref: "#/components/schemas/BinaryImage" }
+      responses:
+        "201":
+          description: Immagine caricata correttamente
+          content:
+            application/json:
+              example:
+                id: "med_2f1c8a90-1e4b-4a8f-9d31-6b0d0c9f2a11.png"
+                url: "/media/med_2f1c8a90-1e4b-4a8f-9d31-6b0d0c9f2a11.png"
+              schema:
+                $ref: "#/components/schemas/MediaUploaded"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "500": { $ref: "#/components/responses/InternalServerError" }
+
+  /media/{mediaId}:
+    parameters:
+      - $ref: "#/components/parameters/mediaId"
+    get:
+      tags: ["Messages"]
+      operationId: getMedia
+      summary: Retrieve an uploaded image
+      description: |-
+        Restituisce un'immagine caricata in precedenza. Non richiede
+        autenticazione perché viene referenziata da tag img del browser, che non
+        inviano l'header Authorization; gli identificativi sono UUID casuali.
+      responses:
+        "200":
+          description: Contenuto binario dell'immagine
+          content:
+            image/png:
+              schema: { $ref: "#/components/schemas/BinaryImage" }
+            image/jpeg:
+              schema: { $ref: "#/components/schemas/BinaryImage" }
+            image/gif:
+              schema: { $ref: "#/components/schemas/BinaryImage" }
+            image/webp:
+              schema: { $ref: "#/components/schemas/BinaryImage" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
 #--------Health--------
   /liveness:
     get:
@@ -905,11 +969,7 @@ components:
           type: boolean
           description: true se il messaggio è stato inoltrato da un'altra conversazione
         content:
-          type: object
-          description: Contenuto del messaggio (testo o foto)
-          oneOf:
-            - $ref: "#/components/schemas/TextMessageContent"
-            - $ref: "#/components/schemas/PhotoMessageContent"
+          $ref: "#/components/schemas/MessageContent"
         senderUsername:
           type: string
           description: Username del mittente del messaggio
@@ -949,36 +1009,57 @@ components:
             - read
             - failed
 
-    TextMessageContent:
-      title: Text Message Content
-      description: Contenuto di un messaggio di testo.
+    MessageContent:
+      title: Message Content
+      description: |-
+        Contenuto di un messaggio: testo, immagine o entrambi.
+        Almeno uno dei due campi deve essere valorizzato.
       type: object
-      required: 
-        - text
       properties:
         text:
           type: string
-          description: Il contenuto del messaggio di testo.
-          minLength: 1
+          description: Testo del messaggio (stringa vuota se il messaggio è solo immagine)
+          minLength: 0
           maxLength: 2000
-          pattern: "^[\\s\\S]+$"
+          pattern: "^[\\s\\S]*$"
           example: Ciao a tutti!
-
-    PhotoMessageContent:
-      title: Contenuto Foto
-      description: Contenuto di un messaggio di tipo immagine.
-      type: object
-      required: 
-        - photoUrl
-      properties:
         photoUrl:
           type: string
-          format: url
-          description: URL della foto inviata.
-          minLength: 10
+          description: |-
+            URL dell'immagine: relativo per i file caricati con uploadMedia
+            (es. /media/med_xxx.png) oppure assoluto. Stringa vuota se assente.
+          minLength: 0
           maxLength: 2048
-          pattern: "^https?://.+"
-          example: https://wasatext.com/media/photo123.jpg
+          pattern: "^(/media/[a-zA-Z0-9_.\\-]+|https?://.+)?$"
+
+    BinaryImage:
+      title: Binary Image
+      description: Byte grezzi di un file immagine (massimo 8 MB)
+      type: string
+      format: binary
+      minLength: 1
+      maxLength: 8388608
+
+    MediaUploaded:
+      title: Media Uploaded
+      description: Riferimento a un'immagine appena caricata
+      type: object
+      required:
+        - id
+        - url
+      properties:
+        id:
+          type: string
+          description: Identificativo del file, comprensivo di estensione
+          minLength: 1
+          maxLength: 128
+          pattern: "^med_[a-zA-Z0-9\\-]+\\.(png|jpg|jpeg|gif|webp)$"
+        url:
+          type: string
+          description: URL con cui referenziare l'immagine
+          minLength: 1
+          maxLength: 2048
+          pattern: "^/media/[a-zA-Z0-9_.\\-]+$"
 
     MessageForward:
       title: Message Forward
@@ -1108,11 +1189,7 @@ components:
         - content
       properties:
         content:
-          type: object
-          description: Message content (text or photo)
-          oneOf:
-            - $ref: "#/components/schemas/TextMessageContent"
-            - $ref: "#/components/schemas/PhotoMessageContent"
+          $ref: "#/components/schemas/MessageContent"
         replyToMessageId:
           type: string
           description: ID of the message being replied to
@@ -1302,6 +1379,17 @@ components:
       name: groupId
       in: path
       required: true
+
+    mediaId:
+      schema:
+        type: string
+        minLength: 1
+        maxLength: 128
+        pattern: "^med_[a-zA-Z0-9\\-]+\\.(png|jpg|jpeg|gif|webp)$"
+      name: mediaId
+      in: path
+      required: true
+      description: The ID of the uploaded image
 
     messageId:
       schema:

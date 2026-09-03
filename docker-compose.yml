@@ -15,7 +15,8 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      - wasa-db:/data
+      # Contiene sia il database sia le immagini caricate.
+      - wasa-data:/data
     restart: unless-stopped
 
   frontend:
@@ -31,4 +32,4 @@ services:
     restart: unless-stopped
 
 volumes:
-  wasa-db:
+  wasa-data:

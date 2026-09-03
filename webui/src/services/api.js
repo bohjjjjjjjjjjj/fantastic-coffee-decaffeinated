@@ -14,6 +14,12 @@ export default {
   searchUsers: (username) =>
     axios.get('/users', { params: username ? { username } : {} }),
 
+  // Media: carica i byte grezzi del file, il tipo è riconosciuto dal backend
+  uploadMedia: (file) =>
+    axios.post('/media', file, {
+      headers: { 'Content-Type': file.type || 'application/octet-stream' }
+    }),
+
   // Conversazioni
   getMyConversations: () => axios.get('/conversations'),
   createConversation: (username) => axios.post('/conversations', { username }),

@@ -31,8 +31,9 @@ COPY --from=builder /out/webapi /usr/local/bin/webapi
 COPY --from=builder /out/healthcheck /usr/local/bin/healthcheck
 
 USER wasa
-# Il database SQLite vive nel volume montato su /data.
+# Database SQLite e immagini caricate vivono nel volume montato su /data.
 ENV CFG_DB_FILENAME=/data/decaf.db
+ENV CFG_STORAGE_MEDIA_PATH=/data/media
 EXPOSE 3000
 
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \

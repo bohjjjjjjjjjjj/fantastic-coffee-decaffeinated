@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"strings"
 
 	"git.sapienzaapps.it/fantasticcoffee/fantastic-coffee-decaffeinated/service/api/reqcontext"
 	"git.sapienzaapps.it/fantasticcoffee/fantastic-coffee-decaffeinated/service/database"
@@ -24,18 +25,15 @@ func (rt *_router) sendMessage(w http.ResponseWriter, r *http.Request, ps httpro
 		return
 	}
 
-	cType := "text"
-	cVal := payload.Content.Text
-	if payload.Content.PhotoURL != "" {
-		cType = "photo"
-		cVal = payload.Content.PhotoURL
-	}
-	if cVal == "" {
+	// Un messaggio può contenere testo, un'immagine o entrambi.
+	text := strings.TrimSpace(payload.Content.Text)
+	photo := strings.TrimSpace(payload.Content.PhotoURL)
+	if text == "" && photo == "" {
 		writeError(w, http.StatusBadRequest, "Contenuto vuoto")
 		return
 	}
 
-	msg, err := rt.db.SendMessage(convID, userID, cType, cVal, payload.ReplyToMessageID)
+	msg, err := rt.db.SendMessage(convID, userID, text, photo, payload.ReplyToMessageID)
 	if err != nil {
 		if errors.Is(err, database.ErrNotFound) {
 			writeError(w, http.StatusNotFound, "Conversazione non trovata")

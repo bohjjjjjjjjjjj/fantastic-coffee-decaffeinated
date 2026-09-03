@@ -57,8 +57,8 @@ type Message struct {
 	ConversationID   string
 	SenderID         string
 	SenderUsername   string
-	ContentType      string // "text" oppure "photo"
-	ContentValue     string
+	ContentText      string // testo del messaggio ("" se assente)
+	ContentPhoto     string // URL della foto ("" se assente)
 	ReplyToMessageID string
 	IsForwarded      bool
 	DataSent         time.Time
@@ -100,7 +100,7 @@ type AppDatabase interface {
 	GetConversationDetails(convID, userID string) (ConversationDetails, error)
 
 	// Messaggi
-	SendMessage(convID, senderID, contentType, contentValue, replyToID string) (Message, error)
+	SendMessage(convID, senderID, contentText, contentPhoto, replyToID string) (Message, error)
 	ForwardMessage(originalMsgID, targetConvID, senderID string) (Message, error)
 	DeleteMessage(msgID, convID, senderID string) error
 
@@ -156,8 +156,8 @@ CREATE TABLE IF NOT EXISTS messages (
 	id TEXT PRIMARY KEY,
 	conversation_id TEXT NOT NULL,
 	sender_id TEXT NOT NULL,
-	content_type TEXT NOT NULL,
-	content_value TEXT NOT NULL,
+	content_text TEXT NOT NULL DEFAULT '',
+	content_photo TEXT NOT NULL DEFAULT '',
 	reply_to_message_id TEXT,
 	is_forwarded BOOLEAN NOT NULL DEFAULT 0,
 	data_sent DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

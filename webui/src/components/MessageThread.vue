@@ -48,10 +48,16 @@
           <span>{{ replyPreview(msg.replyToMessageId) }}</span>
         </div>
 
-        <div v-if="msg.content && msg.content.photoUrl">
-          <img :src="msg.content.photoUrl" alt="foto" class="img-fluid rounded">
+        <!-- Un messaggio puo' contenere immagine, testo o entrambi -->
+        <div v-if="msg.content && msg.content.photoUrl" class="mb-1">
+          <img
+            :src="resolveMedia(msg.content.photoUrl)"
+            alt="immagine allegata"
+            class="img-fluid rounded"
+            style="max-height: 320px;"
+          >
         </div>
-        <div v-else>{{ msg.content ? msg.content.text : '' }}</div>
+        <div v-if="msg.content && msg.content.text">{{ msg.content.text }}</div>
 
         <div class="d-flex align-items-center gap-2 mt-1">
           <small
@@ -106,6 +112,8 @@
 </template>
 
 <script>
+import { mediaURL } from '../services/axios.js'
+
 export default {
   name: 'MessageThread',
   props: {
@@ -122,6 +130,9 @@ export default {
     this.scrollToBottom()
   },
   methods: {
+    resolveMedia(url) {
+      return mediaURL(url)
+    },
     isMine(msg) {
       return msg.senderUsername === this.myUsername
     },
@@ -135,8 +146,9 @@ export default {
     replyPreview(id) {
       const m = this.findMessage(id)
       if (!m) return 'messaggio'
+      if (m.content && m.content.text) return m.content.text
       if (m.content && m.content.photoUrl) return 'Foto'
-      return m.content ? m.content.text : ''
+      return ''
     },
     onReactionClick(msg, reaction) {
       this.$emit('toggle-reaction', { msg, reaction })

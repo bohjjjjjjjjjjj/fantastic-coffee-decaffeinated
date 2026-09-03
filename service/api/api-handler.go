@@ -38,6 +38,10 @@ func (rt *_router) Handler() http.Handler {
 	rt.router.PUT("/groups/:groupId/photo", rt.wrap(rt.setGroupPhoto))
 	rt.router.DELETE("/groups/:groupId/members/me", rt.wrap(rt.leaveGroup))
 
+	// Media (immagini caricate)
+	rt.router.POST("/media", rt.wrap(rt.uploadMedia))
+	rt.router.GET("/media/:mediaId", rt.wrap(rt.getMedia))
+
 	// Health
 	rt.router.GET("/liveness", rt.wrap(rt.liveness))
 

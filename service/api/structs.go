@@ -110,12 +110,7 @@ type GroupMemberListResponse struct {
 
 // toAPIMessage converte un messaggio del database nella rappresentazione API.
 func toAPIMessage(m database.Message) Message {
-	content := MessageContent{}
-	if m.ContentType == "photo" {
-		content.PhotoURL = m.ContentValue
-	} else {
-		content.Text = m.ContentValue
-	}
+	content := MessageContent{Text: m.ContentText, PhotoURL: m.ContentPhoto}
 
 	reactions := make([]Reaction, 0, len(m.Reactions))
 	for _, r := range m.Reactions {

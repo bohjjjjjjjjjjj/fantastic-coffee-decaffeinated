@@ -111,8 +111,9 @@ func run() error {
 
 	// Create the API router
 	apirouter, err := api.New(api.Config{
-		Logger:   logger,
-		Database: db,
+		Logger:    logger,
+		Database:  db,
+		MediaPath: cfg.Storage.MediaPath,
 	})
 	if err != nil {
 		logger.WithError(err).Error("error creating the API server instance")

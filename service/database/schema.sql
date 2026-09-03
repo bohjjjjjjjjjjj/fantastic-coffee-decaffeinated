@@ -39,8 +39,8 @@ CREATE TABLE IF NOT EXISTS messages (
     id TEXT PRIMARY KEY,
     conversation_id TEXT NOT NULL,
     sender_id TEXT NOT NULL,
-    content_type TEXT NOT NULL,   -- 'text' oppure 'photo'
-    content_value TEXT NOT NULL,  -- testo del messaggio o photoUrl
+    content_text TEXT NOT NULL DEFAULT '',   -- testo ('' se assente)
+    content_photo TEXT NOT NULL DEFAULT '',  -- URL della foto ('' se assente)
     reply_to_message_id TEXT,     -- opzionale, per le risposte
     is_forwarded BOOLEAN NOT NULL DEFAULT 0,  -- messaggio inoltrato
     data_sent DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,

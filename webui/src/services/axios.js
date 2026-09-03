@@ -26,6 +26,16 @@ function resolveBaseURL() {
 
 const baseURL = resolveBaseURL()
 
+// I file caricati sono referenziati con URL relativi (/media/...), serviti dal
+// backend: vanno quindi risolti sulla base API, non sull'origine della pagina.
+export function mediaURL(url) {
+  if (!url) return ''
+  if (/^https?:\/\//i.test(url)) return url
+  return baseURL + (url.startsWith('/') ? url : '/' + url)
+}
+
+export { baseURL }
+
 const instance = axios.create({
   baseURL,
   timeout: 1000 * 10,

@@ -148,16 +148,16 @@ func (db *appdbimpl) GetUserConversations(userID string) ([]ConversationSummary,
 // oppure nil se non ci sono messaggi.
 func (db *appdbimpl) lastMessage(convID string) (*LastMessage, error) {
 	var (
-		cType, cVal, sender string
+		text, photo, sender string
 		dataSent            time.Time
 	)
 	err := db.c.QueryRow(`
-		SELECT m.content_type, m.content_value, m.data_sent, COALESCE(u.username, '')
+		SELECT m.content_text, m.content_photo, m.data_sent, COALESCE(u.username, '')
 		FROM messages m
 		LEFT JOIN users u ON u.id = m.sender_id
 		WHERE m.conversation_id = ?
 		ORDER BY m.data_sent DESC, m.id DESC
-		LIMIT 1`, convID).Scan(&cType, &cVal, &dataSent, &sender)
+		LIMIT 1`, convID).Scan(&text, &photo, &dataSent, &sender)
 	if errors.Is(err, sql.ErrNoRows) {
 		return nil, nil
 	}
@@ -165,11 +165,11 @@ func (db *appdbimpl) lastMessage(convID string) (*LastMessage, error) {
 		return nil, fmt.Errorf("error reading last message: %w", err)
 	}
 
-	text := cVal
-	if cType == "photo" {
-		text = "Foto"
+	preview := text
+	if preview == "" && photo != "" {
+		preview = "Foto"
 	}
-	return &LastMessage{Text: text, DataSent: dataSent, SenderUsername: sender}, nil
+	return &LastMessage{Text: preview, DataSent: dataSent, SenderUsername: sender}, nil
 }
 
 // markDelivered segna come "delivered" tutti i messaggi che l'utente può vedere
@@ -255,7 +255,7 @@ func (db *appdbimpl) GetConversationDetails(convID, userID string) (Conversation
 
 	rows, err := db.c.Query(`
 		SELECT m.id, m.conversation_id, m.sender_id, COALESCE(u.username, ''),
-		       m.content_type, m.content_value, COALESCE(m.reply_to_message_id, ''),
+		       m.content_text, m.content_photo, COALESCE(m.reply_to_message_id, ''),
 		       m.is_forwarded, m.data_sent
 		FROM messages m
 		LEFT JOIN users u ON u.id = m.sender_id
@@ -270,7 +270,7 @@ func (db *appdbimpl) GetConversationDetails(convID, userID string) (Conversation
 	for rows.Next() {
 		var m Message
 		if err := rows.Scan(&m.ID, &m.ConversationID, &m.SenderID, &m.SenderUsername,
-			&m.ContentType, &m.ContentValue, &m.ReplyToMessageID, &m.IsForwarded, &m.DataSent); err != nil {
+			&m.ContentText, &m.ContentPhoto, &m.ReplyToMessageID, &m.IsForwarded, &m.DataSent); err != nil {
 			return ConversationDetails{}, err
 		}
 		details.Messages = append(details.Messages, m)

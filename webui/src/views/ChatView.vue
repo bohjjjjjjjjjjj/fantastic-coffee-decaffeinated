@@ -11,7 +11,7 @@
         <div class="mb-3 p-2 bg-white rounded border d-flex align-items-center gap-2">
           <img
             v-if="me.photoUrl"
-            :src="me.photoUrl"
+            :src="resolveMedia(me.photoUrl)"
             alt="foto profilo"
             class="rounded-circle"
             style="width: 36px; height: 36px; object-fit: cover;"
@@ -76,15 +76,42 @@
               <span>Rispondi a: {{ replyPreview }}</span>
               <button type="button" class="btn-close btn-sm" aria-label="annulla" @click="replyTo = null" />
             </div>
+            <div v-if="attachmentPreview" class="mb-2 d-flex align-items-center gap-2">
+              <img :src="attachmentPreview" alt="anteprima" class="rounded border" style="height: 56px;">
+              <span class="small text-muted">{{ attachmentName }}</span>
+              <button type="button" class="btn-close btn-sm" aria-label="rimuovi immagine" @click="clearAttachment" />
+            </div>
             <form class="d-flex gap-2" @submit.prevent="send">
+              <input
+                ref="fileInput"
+                type="file"
+                accept="image/png,image/jpeg,image/gif,image/webp"
+                class="d-none"
+                @change="onFileSelected"
+              >
+              <button
+                type="button"
+                class="btn btn-outline-secondary"
+                title="Allega un'immagine"
+                @click="$refs.fileInput.click()"
+              >
+                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                  <path d="M1.5 2h13A1.5 1.5 0 0 1 16 3.5v9A1.5 1.5 0 0 1 14.5 14h-13A1.5 1.5 0 0 1 0 12.5v-9A1.5 1.5 0 0 1 1.5 2zm12 1h-11a.5.5 0 0 0-.5.5v7l3.2-3.1a.5.5 0 0 1 .68 0L9 11l2.1-2a.5.5 0 0 1 .68 0L14 11V3.5a.5.5 0 0 0-.5-.5zM5 5.5a1.2 1.2 0 1 1-2.4 0 1.2 1.2 0 0 1 2.4 0z" />
+                </svg>
+              </button>
               <input
                 v-model="draft"
                 type="text"
                 class="form-control"
-                placeholder="Scrivi un messaggio... (oppure incolla un URL immagine)"
-                required
+                placeholder="Scrivi un messaggio..."
               >
-              <button type="submit" class="btn btn-primary" :disabled="sending">Invia</button>
+              <button
+                type="submit"
+                class="btn btn-primary"
+                :disabled="sending || (!draft.trim() && !attachmentFile)"
+              >
+                {{ sending ? '...' : 'Invia' }}
+              </button>
             </form>
           </div>
         </template>
@@ -105,13 +132,23 @@
           <button class="btn btn-primary" type="submit">Salva</button>
         </div>
       </form>
-      <form @submit.prevent="updatePhoto">
-        <label class="form-label">URL foto profilo</label>
-        <div class="input-group">
-          <input v-model.trim="form.photoUrl" type="url" class="form-control" placeholder="https://...">
-          <button class="btn btn-primary" type="submit">Salva</button>
-        </div>
-      </form>
+      <label class="form-label">Foto profilo</label>
+      <div class="d-flex align-items-center gap-2 mb-2">
+        <img
+          v-if="form.photoUrl"
+          :src="resolveMedia(form.photoUrl)"
+          alt="foto profilo"
+          class="rounded-circle border"
+          style="width: 56px; height: 56px; object-fit: cover;"
+        >
+        <input
+          type="file"
+          class="form-control"
+          accept="image/png,image/jpeg,image/gif,image/webp"
+          :disabled="uploading"
+          @change="onProfilePhotoSelected"
+        >
+      </div>
     </ModalShell>
 
     <!-- Nuova chat -->
@@ -142,13 +179,23 @@
           <button class="btn btn-primary" type="submit">Salva</button>
         </div>
       </form>
-      <form class="mb-3" @submit.prevent="updateGroupPhoto">
-        <label class="form-label">URL foto gruppo</label>
-        <div class="input-group">
-          <input v-model.trim="form.groupPhoto" type="url" class="form-control" placeholder="https://...">
-          <button class="btn btn-primary" type="submit">Salva</button>
-        </div>
-      </form>
+      <label class="form-label">Foto del gruppo</label>
+      <div class="d-flex align-items-center gap-2 mb-3">
+        <img
+          v-if="form.groupPhoto"
+          :src="resolveMedia(form.groupPhoto)"
+          alt="foto gruppo"
+          class="rounded border"
+          style="width: 56px; height: 56px; object-fit: cover;"
+        >
+        <input
+          type="file"
+          class="form-control"
+          accept="image/png,image/jpeg,image/gif,image/webp"
+          :disabled="uploading"
+          @change="onGroupPhotoSelected"
+        >
+      </div>
       <div class="mb-3">
         <label class="form-label">Membri</label>
         <ul class="list-group mb-2">
@@ -198,6 +245,7 @@
 
 <script>
 import api from '../services/api.js'
+import { mediaURL } from '../services/axios.js'
 import ConversationList from '../components/ConversationList.vue'
 import MessageThread from '../components/MessageThread.vue'
 import ModalShell from '../components/ModalShell.vue'
@@ -216,6 +264,10 @@ export default {
       draft: '',
       replyTo: null,
       sending: false,
+      uploading: false,
+      attachmentFile: null,
+      attachmentPreview: '',
+      attachmentName: '',
       threadError: '',
       modal: null,
       modalError: '',
@@ -275,6 +327,7 @@ export default {
     async selectConversation(conv) {
       this.selectedConv = conv
       this.replyTo = null
+      this.clearAttachment()
       this.messages = []
       await this.loadMessages()
     },
@@ -295,14 +348,38 @@ export default {
         }
       }
     },
+    resolveMedia(url) {
+      return mediaURL(url)
+    },
+    // Carica il file e restituisce l'URL con cui referenziarlo.
+    async uploadFile(file) {
+      const res = await api.uploadMedia(file)
+      return res.data.url
+    },
+    onFileSelected(event) {
+      const file = event.target.files && event.target.files[0]
+      if (!file) return
+      this.attachmentFile = file
+      this.attachmentName = file.name
+      this.attachmentPreview = URL.createObjectURL(file)
+    },
+    clearAttachment() {
+      if (this.attachmentPreview) URL.revokeObjectURL(this.attachmentPreview)
+      this.attachmentFile = null
+      this.attachmentPreview = ''
+      this.attachmentName = ''
+      if (this.$refs.fileInput) this.$refs.fileInput.value = ''
+    },
     async send() {
-      if (!this.draft.trim() || !this.selectedConv) return
+      const text = this.draft.trim()
+      if ((!text && !this.attachmentFile) || !this.selectedConv) return
       this.sending = true
       try {
-        const text = this.draft.trim()
-        const content = /^https?:\/\/\S+$/i.test(text)
-          ? { photoUrl: text }
-          : { text }
+        // Un messaggio puo' contenere testo, immagine o entrambi.
+        const content = {}
+        if (text) content.text = text
+        if (this.attachmentFile) content.photoUrl = await this.uploadFile(this.attachmentFile)
+
         await api.sendMessage(
           this.selectedConv.id,
           content,
@@ -310,10 +387,11 @@ export default {
         )
         this.draft = ''
         this.replyTo = null
+        this.clearAttachment()
         await this.loadMessages()
         await this.loadConversations()
       } catch (err) {
-        this.threadError = err.response?.data?.message || 'Errore durante l\'invio.'
+        this.threadError = err.response?.data?.message || 'Errore durante l' + String.fromCharCode(39) + 'invio.'
       } finally {
         this.sending = false
       }
@@ -401,7 +479,7 @@ export default {
     },
     async openGroupSettings() {
       this.form.groupName = this.selectedConv.username
-      this.form.groupPhoto = ''
+      this.form.groupPhoto = this.selectedConv.photo || ''
       this.form.members = []
       this.openModal('groupSettings')
       try {
@@ -420,12 +498,21 @@ export default {
         this.modalError = err.response?.data?.message || 'Errore nel rinominare il gruppo.'
       }
     },
-    async updateGroupPhoto() {
+    async onGroupPhotoSelected(event) {
+      const file = event.target.files && event.target.files[0]
+      if (!file) return
+      this.uploading = true
+      this.modalError = ''
       try {
-        await api.setGroupPhoto(this.selectedConv.id, this.form.groupPhoto)
+        const url = await this.uploadFile(file)
+        await api.setGroupPhoto(this.selectedConv.id, url)
+        this.form.groupPhoto = url
         await this.loadConversations()
       } catch (err) {
-        this.modalError = err.response?.data?.message || 'Errore nell\'aggiornare la foto.'
+        this.modalError = err.response?.data?.message || 'Errore nel caricamento della foto.'
+      } finally {
+        this.uploading = false
+        event.target.value = ''
       }
     },
     async addMembers() {
@@ -463,13 +550,21 @@ export default {
           : (err.response?.data?.message || 'Errore nell\'aggiornamento.')
       }
     },
-    async updatePhoto() {
+    async onProfilePhotoSelected(event) {
+      const file = event.target.files && event.target.files[0]
+      if (!file) return
+      this.uploading = true
+      this.modalError = ''
       try {
-        await api.setMyPhoto(this.form.photoUrl)
+        const url = await this.uploadFile(file)
+        await api.setMyPhoto(url)
+        this.form.photoUrl = url
         await this.loadMe()
-        this.modalError = ''
       } catch (err) {
-        this.modalError = err.response?.data?.message || 'Errore nell\'aggiornamento.'
+        this.modalError = err.response?.data?.message || 'Errore nel caricamento della foto.'
+      } finally {
+        this.uploading = false
+        event.target.value = ''
       }
     },
     openModal(name) {

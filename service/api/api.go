@@ -51,6 +51,9 @@ type Config struct {
 
 	// Database is the instance of database.AppDatabase where data are saved
 	Database database.AppDatabase
+
+	// MediaPath is the directory where uploaded images are stored
+	MediaPath string
 }
 
 // Router is the package API interface representing an API handler builder
@@ -78,10 +81,16 @@ func New(cfg Config) (Router, error) {
 	router.RedirectTrailingSlash = false
 	router.RedirectFixedPath = false
 
+	mediaPath := cfg.MediaPath
+	if mediaPath == "" {
+		mediaPath = "/tmp/wasatext-media"
+	}
+
 	return &_router{
 		router:     router,
 		baseLogger: cfg.Logger,
 		db:         cfg.Database,
+		mediaPath:  mediaPath,
 	}, nil
 }
 
@@ -93,4 +102,7 @@ type _router struct {
 	baseLogger logrus.FieldLogger
 
 	db database.AppDatabase
+
+	// mediaPath is the directory holding the uploaded images
+	mediaPath string
 }
