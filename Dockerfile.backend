@@ -1,0 +1,41 @@
+# syntax=docker/dockerfile:1
+
+# ---- build stage -------------------------------------------------------------
+FROM golang:1.25-bookworm AS builder
+
+WORKDIR /src
+
+# go-sqlite3 richiede cgo (compilatore C già presente nell'immagine golang).
+ENV CGO_ENABLED=1 GOFLAGS=-mod=vendor
+
+COPY go.mod go.sum ./
+COPY vendor/ ./vendor/
+COPY cmd/ ./cmd/
+COPY service/ ./service/
+
+# Build senza tag "webui": il frontend è servito da un container separato,
+# quindi la cartella webui/ non serve all'immagine backend.
+RUN go build -o /out/webapi ./cmd/webapi/ \
+ && go build -o /out/healthcheck ./cmd/healthcheck/
+
+# ---- runtime stage ----------------------------------------------------------
+FROM debian:bookworm-slim
+
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates \
+ && rm -rf /var/lib/apt/lists/* \
+ && useradd --system --uid 10001 wasa \
+ && mkdir /data && chown wasa /data
+
+COPY --from=builder /out/webapi /usr/local/bin/webapi
+COPY --from=builder /out/healthcheck /usr/local/bin/healthcheck
+
+USER wasa
+# Il database SQLite vive nel volume montato su /data.
+ENV CFG_DB_FILENAME=/data/decaf.db
+EXPOSE 3000
+
+HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \
+  CMD ["/usr/local/bin/healthcheck"]
+
+ENTRYPOINT ["/usr/local/bin/webapi"]

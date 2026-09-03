@@ -1,0 +1,29 @@
+# Git
+.git
+.gitignore
+
+# Frontend: le dipendenze vengono installate dentro l'immagine
+webui/node_modules
+webui/dist
+webui/dist-ssr
+webui/.yarn/unplugged
+webui/.yarn/install-state.gz
+webui/.pnp.*
+
+# Artefatti di build backend
+/webapi
+/healthcheck
+*.exe
+
+# Database e file locali
+*.db
+*.local
+*.log
+
+# Editor / OS
+.vscode
+.idea
+.DS_Store
+
+# Documentazione di sviluppo non necessaria alle immagini
+NOTE-BACKEND.md
