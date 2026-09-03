@@ -23,5 +23,7 @@ COPY webui/nginx.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
 
+# 127.0.0.1 e non localhost: in Alpine localhost risolve prima su ::1, mentre
+# nginx ascolta solo su IPv4, e l'healthcheck fallirebbe con "connection refused".
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \
-  CMD wget -qO- http://localhost/healthz || exit 1
+  CMD wget -qO- http://127.0.0.1/healthz || exit 1
