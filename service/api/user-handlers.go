@@ -12,94 +12,114 @@ import (
 
 // GET /user -> getMyUserInfo
 func (rt *_router) getMyUserInfo(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
-	w.Header().Set("Content-Type", "application/json")
-
-	userID, _, err := rt.authenticate(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Non autorizzato"})
+	userID, _, ok := rt.auth(w, r)
+	if !ok {
 		return
 	}
 
 	user, err := rt.db.GetUserByID(userID)
 	if err != nil {
 		if errors.Is(err, database.ErrUserNotFound) {
-			w.WriteHeader(http.StatusNotFound)
-			_ = json.NewEncoder(w).Encode(errorResponse{Message: "Utente non trovato"})
+			writeError(w, http.StatusNotFound, "Utente non trovato")
 			return
 		}
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Errore interno"})
+		ctx.Logger.WithError(err).Error("getMyUserInfo")
+		writeError(w, http.StatusInternalServerError, "Errore interno")
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(user)
+	writeJSON(w, http.StatusOK, user)
 }
 
 // PUT /user/username -> setMyUserName
 func (rt *_router) setMyUserName(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
-	w.Header().Set("Content-Type", "application/json")
-
-	userID, _, err := rt.authenticate(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Non autorizzato"})
+	userID, _, ok := rt.auth(w, r)
+	if !ok {
 		return
 	}
 
-	var payload struct {
-		Username string `json:"username"`
-	}
-
+	var payload UserName
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "JSON non valido"})
+		writeError(w, http.StatusBadRequest, "JSON non valido")
 		return
 	}
-
 	if !usernameRegex.MatchString(payload.Username) {
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Username non valido"})
+		writeError(w, http.StatusBadRequest, "Username non valido")
 		return
 	}
 
-	err = rt.db.UpdateUsername(userID, payload.Username)
+	err := rt.db.UpdateUsername(userID, payload.Username)
+	if errors.Is(err, database.ErrUsernameTaken) {
+		writeError(w, http.StatusConflict, "Username già in uso")
+		return
+	}
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Errore durante l'aggiornamento"})
+		ctx.Logger.WithError(err).Error("setMyUserName")
+		writeError(w, http.StatusInternalServerError, "Errore durante l'aggiornamento")
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(payload)
+	writeJSON(w, http.StatusOK, payload)
+}
+
+// PUT /user/photo -> setMyPhoto
+func (rt *_router) setMyPhoto(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+	userID, _, ok := rt.auth(w, r)
+	if !ok {
+		return
+	}
+
+	var payload UserPhoto
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeError(w, http.StatusBadRequest, "JSON non valido")
+		return
+	}
+
+	if err := rt.db.SetUserPhoto(userID, payload.PhotoURL); err != nil {
+		ctx.Logger.WithError(err).Error("setMyPhoto")
+		writeError(w, http.StatusInternalServerError, "Errore durante l'aggiornamento")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, payload)
+}
+
+// GET /user/photo -> getMyPhoto
+func (rt *_router) getMyPhoto(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+	userID, _, ok := rt.auth(w, r)
+	if !ok {
+		return
+	}
+
+	user, err := rt.db.GetUserByID(userID)
+	if err != nil {
+		if errors.Is(err, database.ErrUserNotFound) {
+			writeError(w, http.StatusNotFound, "Utente non trovato")
+			return
+		}
+		ctx.Logger.WithError(err).Error("getMyPhoto")
+		writeError(w, http.StatusInternalServerError, "Errore interno")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, UserPhoto{PhotoURL: user.PhotoURL})
 }
 
 // GET /users -> searchUsers
 func (rt *_router) searchUsers(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
-	w.Header().Set("Content-Type", "application/json")
-
-	_, _, err := rt.authenticate(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Non autorizzato"})
+	userID, _, ok := rt.auth(w, r)
+	if !ok {
 		return
 	}
 
-	searchQuery := r.URL.Query().Get("username")
-	users, err := rt.db.SearchUsers(searchQuery)
+	users, err := rt.db.SearchUsers(r.URL.Query().Get("username"), userID)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Errore nella ricerca"})
+		ctx.Logger.WithError(err).Error("searchUsers")
+		writeError(w, http.StatusInternalServerError, "Errore nella ricerca")
 		return
 	}
 
-	response := struct {
+	writeJSON(w, http.StatusOK, struct {
 		Users []database.User `json:"users"`
-	}{
-		Users: users,
-	}
-
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(response)
+	}{Users: users})
 }

@@ -11,6 +11,8 @@ func (rt *_router) Handler() http.Handler {
 	// User
 	rt.router.GET("/user", rt.wrap(rt.getMyUserInfo))
 	rt.router.PUT("/user/username", rt.wrap(rt.setMyUserName))
+	rt.router.PUT("/user/photo", rt.wrap(rt.setMyPhoto))
+	rt.router.GET("/user/photo", rt.wrap(rt.getMyPhoto))
 	rt.router.GET("/users", rt.wrap(rt.searchUsers))
 
 	// Conversations
@@ -29,8 +31,15 @@ func (rt *_router) Handler() http.Handler {
 
 	// Groups
 	rt.router.POST("/groups", rt.wrap(rt.createGroup))
+	rt.router.GET("/groups/:groupId", rt.wrap(rt.getGroupDetails))
+	rt.router.GET("/groups/:groupId/members", rt.wrap(rt.getGroupMembers))
+	rt.router.POST("/groups/:groupId/members", rt.wrap(rt.addToGroup))
 	rt.router.PUT("/groups/:groupId/name", rt.wrap(rt.setGroupName))
+	rt.router.PUT("/groups/:groupId/photo", rt.wrap(rt.setGroupPhoto))
 	rt.router.DELETE("/groups/:groupId/members/me", rt.wrap(rt.leaveGroup))
+
+	// Health
+	rt.router.GET("/liveness", rt.wrap(rt.liveness))
 
 	return rt.router
 }

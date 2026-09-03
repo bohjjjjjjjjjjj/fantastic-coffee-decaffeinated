@@ -4,80 +4,67 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"sort"
+	"time"
 
 	"github.com/gofrs/uuid"
 )
 
-// ConversationSummary rappresenta la sintesi della chat per la lista
-type ConversationSummary struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-	Photo    string `json:"photo"`
-}
-
-// GetOrCreateConversation crea o recupera una chat tra due utenti
+// CreateConversation crea (o recupera, se già esistente) una chat diretta tra
+// l'utente corrente e il destinatario indicato per username.
 func (db *appdbimpl) CreateConversation(currentUserID, targetUsername string) (ConversationSummary, error) {
 	var summary ConversationSummary
 
-	// 1. Cerca l'utente destinatario tramite username
 	var targetID, targetPhoto string
-	err := db.c.QueryRow("SELECT id, photo_url FROM users WHERE username = ?", targetUsername).Scan(&targetID, &targetPhoto)
+	err := db.c.QueryRow("SELECT id, photo_url FROM users WHERE username = ?", targetUsername).
+		Scan(&targetID, &targetPhoto)
 	if errors.Is(err, sql.ErrNoRows) {
 		return summary, ErrUserNotFound
 	} else if err != nil {
 		return summary, fmt.Errorf("error finding target user: %w", err)
 	}
 
-	// Non si può creare una chat con se stessi
 	if currentUserID == targetID {
 		return summary, errors.New("cannot create conversation with yourself")
 	}
 
-	// 2. Controlla se esiste già una conversazione diretta (non gruppo) tra questi due utenti
-	queryCheck := `
-		SELECT c.id FROM conversations c
-		JOIN conversation_members cm1 ON c.id = cm1.conversation_id
-		JOIN conversation_members cm2 ON c.id = cm2.conversation_id
-		WHERE c.is_group = FALSE AND cm1.user_id = ? AND cm2.user_id = ?`
-
+	// Conversazione diretta già esistente?
 	var existingID string
-	err = db.c.QueryRow(queryCheck, currentUserID, targetID).Scan(&existingID)
+	err = db.c.QueryRow(`
+		SELECT c.id FROM conversations c
+		JOIN conversation_members cm1 ON c.id = cm1.conversation_id AND cm1.user_id = ?
+		JOIN conversation_members cm2 ON c.id = cm2.conversation_id AND cm2.user_id = ?
+		WHERE c.is_group = 0`, currentUserID, targetID).Scan(&existingID)
 	if err == nil {
-		// Conversazione già esistente
 		summary.ID = existingID
 		summary.Username = targetUsername
 		summary.Photo = targetPhoto
 		return summary, nil
+	} else if !errors.Is(err, sql.ErrNoRows) {
+		return summary, fmt.Errorf("error checking existing conversation: %w", err)
 	}
 
-	// 3. Se non esiste, crea un nuovo UUID per la conversazione
 	cUUID, err := uuid.NewV4()
 	if err != nil {
 		return summary, fmt.Errorf("error generating conversation UUID: %w", err)
 	}
 	convID := "conv_" + cUUID.String()
 
-	// Inserimento transazionale nel DB
 	tx, err := db.c.Begin()
 	if err != nil {
 		return summary, err
 	}
-	defer func() {
-		_ = tx.Rollback()
-	}()
+	defer func() { _ = tx.Rollback() }()
 
-	_, err = tx.Exec("INSERT INTO conversations (id, is_group) VALUES (?, FALSE)", convID)
-	if err != nil {
+	if _, err = tx.Exec("INSERT INTO conversations (id, is_group) VALUES (?, 0)", convID); err != nil {
 		return summary, fmt.Errorf("error creating conversation: %w", err)
 	}
-
-	// Aggiungi entrambi gli utenti come membri
-	_, err = tx.Exec("INSERT INTO conversation_members (conversation_id, user_id) VALUES (?, ?), (?, ?)",
-		convID, currentUserID, convID, targetID)
-	if err != nil {
+	if _, err = tx.Exec(
+		"INSERT INTO conversation_members (conversation_id, user_id) VALUES (?, ?), (?, ?)",
+		convID, currentUserID, convID, targetID,
+	); err != nil {
 		return summary, fmt.Errorf("error adding conversation members: %w", err)
 	}
-
 	if err = tx.Commit(); err != nil {
 		return summary, err
 	}
@@ -85,44 +72,221 @@ func (db *appdbimpl) CreateConversation(currentUserID, targetUsername string) (C
 	summary.ID = convID
 	summary.Username = targetUsername
 	summary.Photo = targetPhoto
-
 	return summary, nil
 }
 
-// GetUserConversations recupera tutte le chat dell'utente autenticato
+// GetUserConversations recupera tutte le conversazioni dell'utente, ognuna una
+// sola volta, con l'anteprima dell'ultimo messaggio e in ordine cronologico
+// inverso. L'apertura della lista marca come "delivered" i messaggi ricevuti.
 func (db *appdbimpl) GetUserConversations(userID string) ([]ConversationSummary, error) {
-	query := `
-		SELECT c.id, 
-		       COALESCE(u.username, c.name) AS name, 
-		       COALESCE(u.photo_url, c.photo_url) AS photo
-		FROM conversations c
-		JOIN conversation_members cm ON c.id = cm.conversation_id
-		LEFT JOIN conversation_members cm_other ON c.id = cm_other.conversation_id AND cm_other.user_id != ?
-		LEFT JOIN users u ON cm_other.user_id = u.id
-		WHERE cm.user_id = ?`
+	if err := db.markDelivered(userID); err != nil {
+		return nil, err
+	}
 
-	rows, err := db.c.Query(query, userID, userID)
+	rows, err := db.c.Query(`
+		SELECT
+			c.id,
+			c.is_group,
+			CASE WHEN c.is_group THEN c.name ELSE COALESCE((
+				SELECT u.username FROM conversation_members cm2
+				JOIN users u ON u.id = cm2.user_id
+				WHERE cm2.conversation_id = c.id AND cm2.user_id != ?
+				LIMIT 1
+			), '') END AS title,
+			CASE WHEN c.is_group THEN c.photo_url ELSE COALESCE((
+				SELECT u.photo_url FROM conversation_members cm2
+				JOIN users u ON u.id = cm2.user_id
+				WHERE cm2.conversation_id = c.id AND cm2.user_id != ?
+				LIMIT 1
+			), '') END AS photo
+		FROM conversations c
+		JOIN conversation_members cm ON cm.conversation_id = c.id AND cm.user_id = ?`,
+		userID, userID, userID,
+	)
 	if err != nil {
 		return nil, fmt.Errorf("error querying conversations: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
-	var convs []ConversationSummary
+	convs := []ConversationSummary{}
 	for rows.Next() {
 		var cs ConversationSummary
-		if err := rows.Scan(&cs.ID, &cs.Username, &cs.Photo); err != nil {
+		if err := rows.Scan(&cs.ID, &cs.IsGroup, &cs.Username, &cs.Photo); err != nil {
 			return nil, err
 		}
 		convs = append(convs, cs)
 	}
-
 	if err := rows.Err(); err != nil {
 		return nil, fmt.Errorf("error iterating conversations: %w", err)
 	}
 
-	if convs == nil {
-		convs = []ConversationSummary{}
+	for i := range convs {
+		lm, err := db.lastMessage(convs[i].ID)
+		if err != nil {
+			return nil, err
+		}
+		convs[i].LastMessage = lm
 	}
 
+	// Ordine cronologico inverso: le conversazioni con messaggi più recenti prima,
+	// quelle senza messaggi in fondo.
+	sort.SliceStable(convs, func(i, j int) bool {
+		ti, tj := time.Time{}, time.Time{}
+		if convs[i].LastMessage != nil {
+			ti = convs[i].LastMessage.DataSent
+		}
+		if convs[j].LastMessage != nil {
+			tj = convs[j].LastMessage.DataSent
+		}
+		return ti.After(tj)
+	})
+
 	return convs, nil
+}
+
+// lastMessage restituisce l'anteprima dell'ultimo messaggio della conversazione,
+// oppure nil se non ci sono messaggi.
+func (db *appdbimpl) lastMessage(convID string) (*LastMessage, error) {
+	var (
+		cType, cVal, sender string
+		dataSent            time.Time
+	)
+	err := db.c.QueryRow(`
+		SELECT m.content_type, m.content_value, m.data_sent, COALESCE(u.username, '')
+		FROM messages m
+		LEFT JOIN users u ON u.id = m.sender_id
+		WHERE m.conversation_id = ?
+		ORDER BY m.data_sent DESC, m.id DESC
+		LIMIT 1`, convID).Scan(&cType, &cVal, &dataSent, &sender)
+	if errors.Is(err, sql.ErrNoRows) {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("error reading last message: %w", err)
+	}
+
+	text := cVal
+	if cType == "photo" {
+		text = "Foto"
+	}
+	return &LastMessage{Text: text, DataSent: dataSent, SenderUsername: sender}, nil
+}
+
+// markDelivered segna come "delivered" tutti i messaggi che l'utente può vedere
+// e che non ha inviato, senza mai retrocedere quelli già "read".
+func (db *appdbimpl) markDelivered(userID string) error {
+	_, err := db.c.Exec(`
+		INSERT OR IGNORE INTO message_status (message_id, user_id, status)
+		SELECT m.id, ?, 'delivered'
+		FROM messages m
+		JOIN conversation_members cm ON cm.conversation_id = m.conversation_id AND cm.user_id = ?
+		WHERE m.sender_id != ?`, userID, userID, userID)
+	if err != nil {
+		return fmt.Errorf("error marking messages delivered: %w", err)
+	}
+	return nil
+}
+
+// markRead segna come "read" tutti i messaggi della conversazione non inviati
+// dall'utente.
+func (db *appdbimpl) markRead(convID, userID string) error {
+	_, err := db.c.Exec(`
+		INSERT INTO message_status (message_id, user_id, status)
+		SELECT m.id, ?, 'read'
+		FROM messages m
+		WHERE m.conversation_id = ? AND m.sender_id != ?
+		ON CONFLICT(message_id, user_id) DO UPDATE SET status = 'read'`,
+		userID, convID, userID)
+	if err != nil {
+		return fmt.Errorf("error marking messages read: %w", err)
+	}
+	return nil
+}
+
+// messageStatus calcola lo stato aggregato di un messaggio dal punto di vista dei
+// destinatari: "read" se tutti l'hanno letto, "delivered" se tutti l'hanno
+// ricevuto, altrimenti "sent".
+func (db *appdbimpl) messageStatus(convID, msgID, senderID string) (string, error) {
+	var total, readCnt, delivCnt int
+	err := db.c.QueryRow(`
+		SELECT
+			COUNT(*),
+			COALESCE(SUM(CASE WHEN ms.status = 'read' THEN 1 ELSE 0 END), 0),
+			COALESCE(SUM(CASE WHEN ms.status IN ('read', 'delivered') THEN 1 ELSE 0 END), 0)
+		FROM conversation_members cm
+		LEFT JOIN message_status ms ON ms.message_id = ? AND ms.user_id = cm.user_id
+		WHERE cm.conversation_id = ? AND cm.user_id != ?`,
+		msgID, convID, senderID).Scan(&total, &readCnt, &delivCnt)
+	if err != nil {
+		return "", fmt.Errorf("error computing message status: %w", err)
+	}
+
+	switch {
+	case total > 0 && readCnt == total:
+		return "read", nil
+	case total > 0 && delivCnt == total:
+		return "delivered", nil
+	default:
+		return "sent", nil
+	}
+}
+
+// GetConversationDetails recupera la conversazione e tutti i suoi messaggi.
+// L'apertura marca come "read" i messaggi ricevuti dall'utente.
+func (db *appdbimpl) GetConversationDetails(convID, userID string) (ConversationDetails, error) {
+	member, err := db.isMember(convID, userID)
+	if err != nil {
+		return ConversationDetails{}, err
+	}
+	if !member {
+		return ConversationDetails{}, ErrNotFound
+	}
+
+	if err := db.markRead(convID, userID); err != nil {
+		return ConversationDetails{}, err
+	}
+
+	var details ConversationDetails
+	details.ID = convID
+	details.Username, details.Photo, details.IsGroup, err = db.conversationView(convID, userID)
+	if err != nil {
+		return ConversationDetails{}, fmt.Errorf("error reading conversation: %w", err)
+	}
+
+	rows, err := db.c.Query(`
+		SELECT m.id, m.conversation_id, m.sender_id, COALESCE(u.username, ''),
+		       m.content_type, m.content_value, COALESCE(m.reply_to_message_id, ''), m.data_sent
+		FROM messages m
+		LEFT JOIN users u ON u.id = m.sender_id
+		WHERE m.conversation_id = ?
+		ORDER BY m.data_sent ASC, m.id ASC`, convID)
+	if err != nil {
+		return ConversationDetails{}, fmt.Errorf("error querying messages: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	details.Messages = []Message{}
+	for rows.Next() {
+		var m Message
+		if err := rows.Scan(&m.ID, &m.ConversationID, &m.SenderID, &m.SenderUsername,
+			&m.ContentType, &m.ContentValue, &m.ReplyToMessageID, &m.DataSent); err != nil {
+			return ConversationDetails{}, err
+		}
+		details.Messages = append(details.Messages, m)
+	}
+	if err := rows.Err(); err != nil {
+		return ConversationDetails{}, fmt.Errorf("error iterating messages: %w", err)
+	}
+
+	for i := range details.Messages {
+		m := &details.Messages[i]
+		if m.Status, err = db.messageStatus(convID, m.ID, m.SenderID); err != nil {
+			return ConversationDetails{}, err
+		}
+		if m.Reactions, err = db.messageReactions(m.ID); err != nil {
+			return ConversationDetails{}, err
+		}
+	}
+
+	return details, nil
 }

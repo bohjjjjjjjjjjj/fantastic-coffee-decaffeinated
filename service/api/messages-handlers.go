@@ -2,34 +2,25 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"git.sapienzaapps.it/fantasticcoffee/fantastic-coffee-decaffeinated/service/api/reqcontext"
+	"git.sapienzaapps.it/fantasticcoffee/fantastic-coffee-decaffeinated/service/database"
 	"github.com/julienschmidt/httprouter"
 )
 
 // POST /conversations/:conversationId/messages -> sendMessage
 func (rt *_router) sendMessage(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
-	w.Header().Set("Content-Type", "application/json")
-	convID := ps.ByName("conversationId")
-
-	_, username, err := rt.authenticate(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Non autorizzato"})
+	userID, _, ok := rt.auth(w, r)
+	if !ok {
 		return
 	}
+	convID := ps.ByName("conversationId")
 
-	var payload struct {
-		Content struct {
-			Text     string `json:"text"`
-			PhotoURL string `json:"photoUrl"`
-		} `json:"content"`
-	}
-
+	var payload NewMessageRequest
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "JSON non valido"})
+		writeError(w, http.StatusBadRequest, "JSON non valido")
 		return
 	}
 
@@ -39,64 +30,70 @@ func (rt *_router) sendMessage(w http.ResponseWriter, r *http.Request, ps httpro
 		cType = "photo"
 		cVal = payload.Content.PhotoURL
 	}
-
 	if cVal == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Contenuto vuoto"})
+		writeError(w, http.StatusBadRequest, "Contenuto vuoto")
 		return
 	}
 
-	msg, err := rt.db.SendMessage(convID, username, cType, cVal)
+	msg, err := rt.db.SendMessage(convID, userID, cType, cVal, payload.ReplyToMessageID)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Errore invio messaggio"})
+		if errors.Is(err, database.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "Conversazione non trovata")
+			return
+		}
+		ctx.Logger.WithError(err).Error("sendMessage")
+		writeError(w, http.StatusInternalServerError, "Errore invio messaggio")
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(msg)
+	writeJSON(w, http.StatusCreated, toAPIMessage(msg))
 }
 
-// GET /conversations/:conversationId -> getConversation
-func (rt *_router) getConversation(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
-	w.Header().Set("Content-Type", "application/json")
-	convID := ps.ByName("conversationId")
+// POST /conversations/:conversationId/messages/:messageId/forward -> forwardMessage
+func (rt *_router) forwardMessage(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+	userID, _, ok := rt.auth(w, r)
+	if !ok {
+		return
+	}
+	msgID := ps.ByName("messageId")
 
-	userID, _, err := rt.authenticate(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Non autorizzato"})
+	var payload MessageForward
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil || payload.TargetConversationID == "" {
+		writeError(w, http.StatusBadRequest, "Destinazione non valida")
 		return
 	}
 
-	details, err := rt.db.GetConversationDetails(convID, userID)
+	newMsg, err := rt.db.ForwardMessage(msgID, payload.TargetConversationID, userID)
 	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Conversazione non trovata"})
+		if errors.Is(err, database.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "Messaggio o conversazione non trovati")
+			return
+		}
+		ctx.Logger.WithError(err).Error("forwardMessage")
+		writeError(w, http.StatusInternalServerError, "Errore inoltro messaggio")
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(details)
+	writeJSON(w, http.StatusCreated, toAPIMessage(newMsg))
 }
 
 // DELETE /conversations/:conversationId/messages/:messageId -> deleteMessage
 func (rt *_router) deleteMessage(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
-	w.Header().Set("Content-Type", "application/json")
+	userID, _, ok := rt.auth(w, r)
+	if !ok {
+		return
+	}
 	convID := ps.ByName("conversationId")
 	msgID := ps.ByName("messageId")
 
-	_, username, err := rt.authenticate(r)
+	err := rt.db.DeleteMessage(msgID, convID, userID)
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Non autorizzato"})
-		return
-	}
-
-	err = rt.db.DeleteMessage(msgID, convID, username)
-	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Impossibile eliminare il messaggio"})
+		if errors.Is(err, database.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "Messaggio non trovato")
+			return
+		}
+		ctx.Logger.WithError(err).Error("deleteMessage")
+		writeError(w, http.StatusInternalServerError, "Errore eliminazione messaggio")
 		return
 	}
 

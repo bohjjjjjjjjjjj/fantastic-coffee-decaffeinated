@@ -2,97 +2,70 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"git.sapienzaapps.it/fantasticcoffee/fantastic-coffee-decaffeinated/service/api/reqcontext"
+	"git.sapienzaapps.it/fantasticcoffee/fantastic-coffee-decaffeinated/service/database"
 	"github.com/julienschmidt/httprouter"
 )
 
 // POST /conversations/:conversationId/messages/:messageId/reactions -> commentMessage
 func (rt *_router) commentMessage(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
-	w.Header().Set("Content-Type", "application/json")
-	msgID := ps.ByName("messageId")
-
-	userID, _, err := rt.authenticate(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Non autorizzato"})
+	userID, _, ok := rt.auth(w, r)
+	if !ok {
 		return
 	}
+	convID := ps.ByName("conversationId")
+	msgID := ps.ByName("messageId")
 
 	var payload struct {
 		ReactionType string `json:"reactionType"`
 	}
-
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil || payload.ReactionType == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Reazione non valida"})
+		writeError(w, http.StatusBadRequest, "Reazione non valida")
 		return
 	}
 
-	reaction, err := rt.db.AddReaction(msgID, userID, payload.ReactionType)
+	reaction, err := rt.db.AddReaction(convID, msgID, userID, payload.ReactionType)
 	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Messaggio non trovato"})
+		if errors.Is(err, database.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "Messaggio non trovato")
+			return
+		}
+		ctx.Logger.WithError(err).Error("commentMessage")
+		writeError(w, http.StatusInternalServerError, "Errore aggiunta reazione")
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(reaction)
+	writeJSON(w, http.StatusCreated, Reaction{
+		ID:           reaction.ID,
+		ReactionType: reaction.ReactionType,
+		UserSenderID: reaction.UserSenderID,
+		Username:     reaction.Username,
+	})
 }
 
 // DELETE /conversations/:conversationId/messages/:messageId/reactions/:reactionId -> uncommentMessage
 func (rt *_router) uncommentMessage(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
-	w.Header().Set("Content-Type", "application/json")
+	userID, _, ok := rt.auth(w, r)
+	if !ok {
+		return
+	}
+	convID := ps.ByName("conversationId")
 	msgID := ps.ByName("messageId")
 	reactionID := ps.ByName("reactionId")
 
-	userID, _, err := rt.authenticate(r)
+	err := rt.db.RemoveReaction(convID, msgID, reactionID, userID)
 	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Non autorizzato"})
-		return
-	}
-
-	err = rt.db.RemoveReaction(msgID, reactionID, userID)
-	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Reazione non trovata"})
+		if errors.Is(err, database.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "Reazione non trovata")
+			return
+		}
+		ctx.Logger.WithError(err).Error("uncommentMessage")
+		writeError(w, http.StatusInternalServerError, "Errore rimozione reazione")
 		return
 	}
 
 	w.WriteHeader(http.StatusNoContent)
-}
-
-// POST /conversations/:conversationId/messages/:messageId/forward -> forwardMessage
-func (rt *_router) forwardMessage(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
-	w.Header().Set("Content-Type", "application/json")
-	msgID := ps.ByName("messageId")
-
-	_, username, err := rt.authenticate(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Non autorizzato"})
-		return
-	}
-
-	var payload struct {
-		TargetConversationID string `json:"targetConversationId"`
-	}
-
-	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil || payload.TargetConversationID == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Destinazione non valida"})
-		return
-	}
-
-	newMsg, err := rt.db.ForwardMessage(msgID, payload.TargetConversationID, username)
-	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Messaggio o conversazione non trovati"})
-		return
-	}
-
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(newMsg)
 }

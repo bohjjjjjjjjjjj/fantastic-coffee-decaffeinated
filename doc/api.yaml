@@ -1,6 +1,6 @@
 openapi: 3.0.0
 servers:
-  - url: "http://localhost:3000/v1"
+  - url: "http://localhost:3000"
 info:
   title: WASAText
   description: Fantastic Coffee (decaffeinated), the skeleton project for Web and Software architecture course
@@ -483,8 +483,10 @@ paths:
           content:
             application/json:
               example:
+                id: "react_123"
                 reactionType: "like"
                 userSenderId: "usr_123"
+                username: "mario_rossi"
               schema:
                 $ref: "#/components/schemas/Reaction"
         "400": { $ref: "#/components/responses/BadRequest" }
@@ -539,6 +541,16 @@ paths:
                   minLength: 1
                   maxLength: 50
                   pattern: "^[a-zA-Z0-9_ ]+$"
+                memberIds:
+                  type: array
+                  description: ID di altri utenti da aggiungere subito al gruppo (opzionale)
+                  minItems: 0
+                  maxItems: 50
+                  items:
+                    type: string
+                    minLength: 1
+                    maxLength: 64
+                    pattern: "^[a-zA-Z0-9_\\-]+$"
       responses:
         "201":
           description: Successful creation of WasaText group
@@ -726,6 +738,20 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
+#--------Health--------
+  /liveness:
+    get:
+      tags: ["Session"]
+      operationId: liveness
+      summary: Liveness probe
+      description: |-
+        Sonda di liveness usata dalle probe di infrastruttura: verifica che il
+        servizio e il database rispondano.
+      responses:
+        "204":
+          description: Il servizio è attivo
+        "500": { $ref: "#/components/responses/InternalServerError" }
+
 #--------Components--------
 components:
   schemas:
@@ -752,11 +778,10 @@ components:
           pattern: "^[a-zA-Z0-9_ ]+$"
         photoUrl:
           type: string
-          description: URL della foto di copertina del gruppo
-          format: url
-          minLength: 10
+          description: URL della foto di copertina del gruppo (stringa vuota se assente)
+          minLength: 0
           maxLength: 2048
-          pattern: "^https?://.+"
+          pattern: "^(https?://.+)?$"
 
     GroupMemberListResponse:
       title: Group Member List
@@ -792,15 +817,11 @@ components:
           pattern: "^[a-zA-Z0-9_]+$"
         photoUrl:
           type: string
-          description: URL della foto profilo dell'utente
-          format: url
-          minLength: 10
+          description: URL della foto profilo dell'utente (stringa vuota se assente)
+          minLength: 0
           maxLength: 2048
-          pattern: "^https?://.+"
+          pattern: "^(https?://.+)?$"
 
-    
-          
-          
     UserName:
       type: object
       title: UserName
@@ -824,11 +845,10 @@ components:
       properties:
         photoUrl:
           type: string
-          description: URL della nuova foto profilo da impostare
-          format: url
-          minLength: 10
+          description: URL della nuova foto profilo da impostare (stringa vuota per rimuoverla)
+          minLength: 0
           maxLength: 2048
-          pattern: "^https?://.+"
+          pattern: "^(https?://.+)?$"
     
     Message:
       type: object
@@ -836,6 +856,8 @@ components:
       description: WasaText conversation messages
       required:
         - id
+        - conversationId
+        - senderId
         - content
         - senderUsername
         - dataSent
@@ -844,6 +866,24 @@ components:
         id:
           type: string
           description: Identificatore univoco del messaggio
+          minLength: 1
+          maxLength: 64
+          pattern: "^[a-zA-Z0-9_\\-]+$"
+        conversationId:
+          type: string
+          description: ID della conversazione a cui appartiene il messaggio
+          minLength: 1
+          maxLength: 64
+          pattern: "^[a-zA-Z0-9_\\-]+$"
+        senderId:
+          type: string
+          description: ID dell'utente mittente (stabile anche dopo un cambio di username)
+          minLength: 1
+          maxLength: 64
+          pattern: "^[a-zA-Z0-9_\\-]+$"
+        replyToMessageId:
+          type: string
+          description: ID del messaggio a cui questo risponde (assente se non è una risposta)
           minLength: 1
           maxLength: 64
           pattern: "^[a-zA-Z0-9_\\-]+$"
@@ -960,10 +1000,17 @@ components:
       title: Reaction
       description: Reazione applicata a un messaggio, così come restituita dal server
       type: object
-      required: 
+      required:
+        - id
         - reactionType
         - userSenderId
       properties:
+        id:
+          type: string
+          description: ID della reazione, usato dal client per rimuoverla (uncommentMessage)
+          minLength: 1
+          maxLength: 64
+          pattern: "^[a-zA-Z0-9_\\-]+$"
         reactionType:
           type: string
           description: Tipo/Emoji di reazione utilizzata
@@ -978,6 +1025,12 @@ components:
           maxLength: 64
           pattern: "^[a-zA-Z0-9_\\-]+$"
           example: "user_67890"
+        username:
+          type: string
+          description: Username dell'utente che ha aggiunto la reazione
+          minLength: 3
+          maxLength: 30
+          pattern: "^[a-zA-Z0-9_]+$"
 
     MemberIdList:
       title: Member ID List
@@ -1071,6 +1124,7 @@ components:
         - id
         - username
         - photo
+        - isGroup
         - messages
       properties:
         id:
@@ -1087,11 +1141,13 @@ components:
           pattern: "^[a-zA-Z0-9_ ]+$"
         photo:
           type: string
-          description: Foto dell'interlocutore o del gruppo
-          format: url
-          minLength: 10
+          description: Foto dell'interlocutore o del gruppo (stringa vuota se assente)
+          minLength: 0
           maxLength: 2048
-          pattern: "^https?://.+"
+          pattern: "^(https?://.+)?$"
+        isGroup:
+          type: boolean
+          description: true se la conversazione è un gruppo
         messages:
           type: array
           description: Elenco dei messaggi all'interno della conversazione
@@ -1108,6 +1164,7 @@ components:
         - id
         - username
         - photo
+        - isGroup
       properties:
         id:
           type: string
@@ -1123,11 +1180,43 @@ components:
           pattern: "^[a-zA-Z0-9_ ]+$"
         photo:
           type: string
-          description: Foto dell'interlocutore o del gruppo
-          format: url
-          minLength: 10
+          description: Foto dell'interlocutore o del gruppo (stringa vuota se assente)
+          minLength: 0
           maxLength: 2048
-          pattern: "^https?://.+"
+          pattern: "^(https?://.+)?$"
+        isGroup:
+          type: boolean
+          description: true se la conversazione è un gruppo
+        lastMessage:
+          $ref: "#/components/schemas/LastMessagePreview"
+
+    LastMessagePreview:
+      title: Last Message Preview
+      description: Anteprima dell'ultimo messaggio di una conversazione (assente se non ci sono messaggi)
+      type: object
+      required:
+        - text
+        - dataSent
+        - senderUsername
+      properties:
+        text:
+          type: string
+          description: Testo del messaggio, oppure "Foto" per i messaggi immagine
+          minLength: 1
+          maxLength: 2000
+        dataSent:
+          type: string
+          description: Data e ora dell'ultimo messaggio
+          format: date-time
+          minLength: 20
+          maxLength: 35
+          pattern: "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}"
+        senderUsername:
+          type: string
+          description: Username di chi ha inviato l'ultimo messaggio
+          minLength: 3
+          maxLength: 30
+          pattern: "^[a-zA-Z0-9_]+$"
 
   #--------Responses--------
   responses:

@@ -1,27 +1,62 @@
 package database
 
 import (
-	"database/sql"
-	"errors"
 	"fmt"
 
 	"github.com/gofrs/uuid"
 )
 
-type Reaction struct {
-	ReactionType string `json:"reactionType"`
-	UserSenderID string `json:"userSenderId"`
+// messageReactions restituisce tutte le reazioni di un messaggio.
+func (db *appdbimpl) messageReactions(messageID string) ([]Reaction, error) {
+	rows, err := db.c.Query(`
+		SELECT r.id, r.reaction_type, r.user_id, COALESCE(u.username, '')
+		FROM reactions r
+		LEFT JOIN users u ON u.id = r.user_id
+		WHERE r.message_id = ?
+		ORDER BY r.id`, messageID)
+	if err != nil {
+		return nil, fmt.Errorf("error querying reactions: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	reactions := []Reaction{}
+	for rows.Next() {
+		var r Reaction
+		if err := rows.Scan(&r.ID, &r.ReactionType, &r.UserSenderID, &r.Username); err != nil {
+			return nil, err
+		}
+		reactions = append(reactions, r)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return reactions, nil
 }
 
-// AddReaction aggiunge una reazione a un messaggio
-func (db *appdbimpl) AddReaction(messageID, userID, reactionType string) (Reaction, error) {
+// messageInConversation indica se il messaggio esiste nella conversazione e se
+// l'utente ne fa parte.
+func (db *appdbimpl) messageInConversation(convID, messageID, userID string) (bool, error) {
+	var ok bool
+	err := db.c.QueryRow(`
+		SELECT EXISTS(
+			SELECT 1 FROM messages m
+			JOIN conversation_members cm ON cm.conversation_id = m.conversation_id AND cm.user_id = ?
+			WHERE m.id = ? AND m.conversation_id = ?
+		)`, userID, messageID, convID).Scan(&ok)
+	return ok, err
+}
+
+// AddReaction aggiunge (o sostituisce) la reazione dell'utente a un messaggio.
+// Una sola reazione per utente per messaggio.
+func (db *appdbimpl) AddReaction(convID, messageID, userID, reactionType string) (Reaction, error) {
 	var r Reaction
 
-	// Verifica che il messaggio esista
-	var exists bool
-	err := db.c.QueryRow("SELECT EXISTS(SELECT 1 FROM messages WHERE id = ?)", messageID).Scan(&exists)
-	if err != nil || !exists {
-		return r, errors.New("message not found")
+	ok, err := db.messageInConversation(convID, messageID, userID)
+	if err != nil {
+		return r, err
+	}
+	if !ok {
+		return r, ErrNotFound
 	}
 
 	rUUID, err := uuid.NewV4()
@@ -30,46 +65,46 @@ func (db *appdbimpl) AddReaction(messageID, userID, reactionType string) (Reacti
 	}
 	reactionID := "react_" + rUUID.String()
 
-	query := "INSERT INTO reactions (id, message_id, user_id, reaction_type) VALUES (?, ?, ?, ?)"
-	_, err = db.c.Exec(query, reactionID, messageID, userID, reactionType)
+	_, err = db.c.Exec(`
+		INSERT INTO reactions (id, message_id, user_id, reaction_type)
+		VALUES (?, ?, ?, ?)
+		ON CONFLICT(message_id, user_id) DO UPDATE SET reaction_type = excluded.reaction_type`,
+		reactionID, messageID, userID, reactionType)
 	if err != nil {
 		return r, fmt.Errorf("error inserting reaction: %w", err)
 	}
 
-	r.ReactionType = reactionType
-	r.UserSenderID = userID
+	var username string
+	if err := db.c.QueryRow(`
+		SELECT r.id, COALESCE(u.username, '')
+		FROM reactions r LEFT JOIN users u ON u.id = r.user_id
+		WHERE r.message_id = ? AND r.user_id = ?`, messageID, userID).Scan(&reactionID, &username); err != nil {
+		return r, fmt.Errorf("error reading reaction: %w", err)
+	}
 
-	return r, nil
+	return Reaction{ID: reactionID, ReactionType: reactionType, UserSenderID: userID, Username: username}, nil
 }
 
-// RemoveReaction rimuove una reazione da un messaggio
-func (db *appdbimpl) RemoveReaction(messageID, reactionID, userID string) error {
-	res, err := db.c.Exec("DELETE FROM reactions WHERE id = ? AND message_id = ? AND user_id = ?", reactionID, messageID, userID)
+// RemoveReaction rimuove una reazione dell'utente da un messaggio.
+func (db *appdbimpl) RemoveReaction(convID, messageID, reactionID, userID string) error {
+	ok, err := db.messageInConversation(convID, messageID, userID)
 	if err != nil {
 		return err
 	}
-
-	rowsAffected, _ := res.RowsAffected()
-	if rowsAffected == 0 {
-		return errors.New("reaction not found or access denied")
+	if !ok {
+		return ErrNotFound
 	}
 
+	res, err := db.c.Exec(
+		"DELETE FROM reactions WHERE id = ? AND message_id = ? AND user_id = ?",
+		reactionID, messageID, userID,
+	)
+	if err != nil {
+		return err
+	}
+	rowsAffected, err := res.RowsAffected()
+	if err != nil || rowsAffected == 0 {
+		return ErrNotFound
+	}
 	return nil
-}
-
-// ForwardMessage copia un messaggio esistente in una nuova conversazione
-func (db *appdbimpl) ForwardMessage(originalMsgID, targetConvID, senderUsername string) (Message, error) {
-	var msg Message
-
-	// Recupera il contenuto del messaggio originale
-	var cType, cVal string
-	err := db.c.QueryRow("SELECT content_type, content_value FROM messages WHERE id = ?", originalMsgID).Scan(&cType, &cVal)
-	if errors.Is(err, sql.ErrNoRows) {
-		return msg, errors.New("original message not found")
-	} else if err != nil {
-		return msg, err
-	}
-
-	// Invia il messaggio recuperato nella conversazione di destinazione
-	return db.SendMessage(targetConvID, senderUsername, cType, cVal)
 }

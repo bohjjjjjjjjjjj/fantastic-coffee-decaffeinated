@@ -1,128 +1,140 @@
 package api
 
-// User rappresenta le informazioni di base di un utente (schema User)
-type User struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-	PhotoURL string `json:"photoUrl,omitempty"`
-}
+import "git.sapienzaapps.it/fantasticcoffee/fantastic-coffee-decaffeinated/service/database"
 
-// UserName viene usato per il payload di aggiornamento del nome utente (schema UserName)
+// UserName è il payload per l'aggiornamento del nome utente (schema UserName).
 type UserName struct {
 	Username string `json:"username"`
 }
 
-// UserPhoto viene usato per il payload di aggiornamento della foto profilo (schema UserPhoto)
+// UserPhoto è il payload / risposta per la foto profilo (schema UserPhoto).
 type UserPhoto struct {
 	PhotoURL string `json:"photoUrl"`
 }
 
-// Reaction rappresenta una reazione ad un messaggio (schema Reaction)
+// Reaction rappresenta una reazione a un messaggio (schema Reaction).
 type Reaction struct {
+	ID           string `json:"id"`
 	ReactionType string `json:"reactionType"`
 	UserSenderID string `json:"userSenderId"`
+	Username     string `json:"username,omitempty"`
 }
 
-// NewReaction è il payload inviato dal client per aggiungere una reazione (schema NewReaction)
-type NewReaction struct {
-	ReactionType string `json:"reactionType"`
-}
-
-// StatusMessage descrive lo stato del messaggio (schema StatusMessage)
+// StatusMessage descrive lo stato del messaggio (schema StatusMessage).
 type StatusMessage struct {
 	Value string `json:"value"` // "sent", "delivered", "read", "failed"
 }
 
-// TextMessageContent rappresenta un messaggio di solo testo (schema TextMessageContent)
-type TextMessageContent struct {
-	Text string `json:"text"`
-}
-
-// PhotoMessageContent rappresenta un messaggio contenente un'immagine (schema PhotoMessageContent)
-type PhotoMessageContent struct {
-	PhotoURL string `json:"photoUrl"`
-}
-
-// MessageContent wrapper per gestire sia messaggi di testo che di foto
+// MessageContent gestisce sia i messaggi di testo sia quelli con foto.
 type MessageContent struct {
 	Text     string `json:"text,omitempty"`
 	PhotoURL string `json:"photoUrl,omitempty"`
 }
 
-// Message rappresenta un messaggio completo (schema Message)
+// Message rappresenta un messaggio completo (schema Message).
 type Message struct {
-	ID             string         `json:"id"`
-	SenderUsername string         `json:"senderUsername"`
-	DataSent       string         `json:"dataSent"`
-	Status         StatusMessage  `json:"status"`
-	Content        MessageContent `json:"content"`
-	Reactions      []Reaction     `json:"reaction,omitempty"`
+	ID               string         `json:"id"`
+	ConversationID   string         `json:"conversationId"`
+	SenderID         string         `json:"senderId"`
+	SenderUsername   string         `json:"senderUsername"`
+	DataSent         string         `json:"dataSent"`
+	Status           StatusMessage  `json:"status"`
+	Content          MessageContent `json:"content"`
+	ReplyToMessageID string         `json:"replyToMessageId,omitempty"`
+	Reactions        []Reaction     `json:"reaction"`
 }
 
-// NewMessageRequest è il payload per l'invio di un messaggio (schema NewMessageRequest)
+// NewMessageRequest è il payload per l'invio di un messaggio (schema NewMessageRequest).
 type NewMessageRequest struct {
 	Content          MessageContent `json:"content"`
 	ReplyToMessageID string         `json:"replyToMessageId,omitempty"`
 }
 
-// MessageForward è il payload per l'inoltro di un messaggio (schema MessageForward)
+// MessageForward è il payload per l'inoltro di un messaggio (schema MessageForward).
 type MessageForward struct {
 	TargetConversationID string `json:"targetConversationId"`
 }
 
-// ConversationDetailsSummary è la sintesi per l'elenco chat (schema ConversationDetailsSummary)
-type ConversationDetailsSummary struct {
-	ID       string `json:"id"`
-	Username string `json:"username"`
-	Photo    string `json:"photo"`
+// LastMessagePreview è l'anteprima dell'ultimo messaggio nella lista chat.
+type LastMessagePreview struct {
+	Text           string `json:"text"`
+	DataSent       string `json:"dataSent"`
+	SenderUsername string `json:"senderUsername"`
 }
 
-// ConversationDetails contiene la chat completa con i messaggi (schema ConversationDetails)
+// ConversationDetailsSummary è la sintesi per l'elenco chat (schema ConversationDetailsSummary).
+type ConversationDetailsSummary struct {
+	ID          string              `json:"id"`
+	Username    string              `json:"username"`
+	Photo       string              `json:"photo"`
+	IsGroup     bool                `json:"isGroup"`
+	LastMessage *LastMessagePreview `json:"lastMessage,omitempty"`
+}
+
+// ConversationDetails contiene la chat completa con i messaggi (schema ConversationDetails).
 type ConversationDetails struct {
 	ID       string    `json:"id"`
 	Username string    `json:"username"`
 	Photo    string    `json:"photo"`
+	IsGroup  bool      `json:"isGroup"`
 	Messages []Message `json:"messages"`
 }
 
-// Group rappresenta i dettagli di un gruppo (schema Group)
+// Group rappresenta i dettagli di un gruppo (schema Group).
 type Group struct {
 	ID       string `json:"id"`
 	Name     string `json:"name"`
 	PhotoURL string `json:"photoUrl"`
 }
 
-// GroupName payload per aggiornare il nome del gruppo (schema GroupName)
+// GroupName è il payload per aggiornare il nome del gruppo (schema GroupName).
 type GroupName struct {
 	Name string `json:"name"`
 }
 
-// GroupPhoto payload per aggiornare la foto del gruppo (schema GroupPhoto)
+// GroupPhoto è il payload per aggiornare la foto del gruppo (schema GroupPhoto).
 type GroupPhoto struct {
 	PhotoURL string `json:"photoUrl"`
 }
 
-// MemberIDList payload per aggiungere membri al gruppo (schema MemberIdList)
+// MemberIDList è il payload per aggiungere membri al gruppo (schema MemberIdList).
 type MemberIDList struct {
 	MemberIDs []string `json:"memberIds"`
 }
 
-// GroupMemberListResponse contiene l'elenco aggiornato dei membri di un gruppo
+// GroupMemberListResponse contiene l'elenco aggiornato dei membri di un gruppo.
 type GroupMemberListResponse struct {
-	Members []User `json:"members"`
+	Members []database.User `json:"members"`
 }
 
-// LoginRequest payload per la richiesta di login
-type LoginRequest struct {
-	Name string `json:"name"`
-}
+// toAPIMessage converte un messaggio del database nella rappresentazione API.
+func toAPIMessage(m database.Message) Message {
+	content := MessageContent{}
+	if m.ContentType == "photo" {
+		content.PhotoURL = m.ContentValue
+	} else {
+		content.Text = m.ContentValue
+	}
 
-// LoginResponse risposta restitutita dopo il login
-type LoginResponse struct {
-	Identifier string `json:"identifier"`
-}
+	reactions := make([]Reaction, 0, len(m.Reactions))
+	for _, r := range m.Reactions {
+		reactions = append(reactions, Reaction{
+			ID:           r.ID,
+			ReactionType: r.ReactionType,
+			UserSenderID: r.UserSenderID,
+			Username:     r.Username,
+		})
+	}
 
-// ErrorResponse formato di errore standard (schema ErrorResponse)
-type ErrorResponse struct {
-	Message string `json:"message"`
+	return Message{
+		ID:               m.ID,
+		ConversationID:   m.ConversationID,
+		SenderID:         m.SenderID,
+		SenderUsername:   m.SenderUsername,
+		DataSent:         m.DataSent.UTC().Format("2006-01-02T15:04:05Z"),
+		Status:           StatusMessage{Value: m.Status},
+		Content:          content,
+		ReplyToMessageID: m.ReplyToMessageID,
+		Reactions:        reactions,
+	}
 }

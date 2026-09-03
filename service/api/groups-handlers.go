@@ -2,93 +2,184 @@ package api
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"git.sapienzaapps.it/fantasticcoffee/fantastic-coffee-decaffeinated/service/api/reqcontext"
+	"git.sapienzaapps.it/fantasticcoffee/fantastic-coffee-decaffeinated/service/database"
 	"github.com/julienschmidt/httprouter"
 )
 
 // POST /groups -> createGroup
 func (rt *_router) createGroup(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
-	w.Header().Set("Content-Type", "application/json")
-
-	userID, _, err := rt.authenticate(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Non autorizzato"})
+	userID, _, ok := rt.auth(w, r)
+	if !ok {
 		return
 	}
 
 	var payload struct {
-		Name string `json:"name"`
+		Name      string   `json:"name"`
+		MemberIDs []string `json:"memberIds"`
 	}
-
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil || payload.Name == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Nome gruppo non valido"})
+		writeError(w, http.StatusBadRequest, "Nome gruppo non valido")
 		return
 	}
 
-	group, err := rt.db.CreateGroup(payload.Name, userID)
+	group, err := rt.db.CreateGroup(payload.Name, userID, payload.MemberIDs)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Errore creazione gruppo"})
+		ctx.Logger.WithError(err).Error("createGroup")
+		writeError(w, http.StatusInternalServerError, "Errore creazione gruppo")
 		return
 	}
 
-	w.WriteHeader(http.StatusCreated)
-	_ = json.NewEncoder(w).Encode(group)
+	writeJSON(w, http.StatusCreated, Group{ID: group.ID, Name: group.Name, PhotoURL: group.PhotoURL})
+}
+
+// GET /groups/:groupId -> getGroupDetails
+func (rt *_router) getGroupDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+	userID, _, ok := rt.auth(w, r)
+	if !ok {
+		return
+	}
+	groupID := ps.ByName("groupId")
+
+	group, err := rt.db.GetGroupDetails(groupID, userID)
+	if err != nil {
+		if errors.Is(err, database.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "Gruppo non trovato")
+			return
+		}
+		ctx.Logger.WithError(err).Error("getGroupDetails")
+		writeError(w, http.StatusInternalServerError, "Errore recupero gruppo")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, Group{ID: group.ID, Name: group.Name, PhotoURL: group.PhotoURL})
+}
+
+// GET /groups/:groupId/members -> getGroupMembers
+func (rt *_router) getGroupMembers(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+	userID, _, ok := rt.auth(w, r)
+	if !ok {
+		return
+	}
+	groupID := ps.ByName("groupId")
+
+	members, err := rt.db.GetGroupMembers(groupID, userID)
+	if err != nil {
+		if errors.Is(err, database.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "Gruppo non trovato")
+			return
+		}
+		ctx.Logger.WithError(err).Error("getGroupMembers")
+		writeError(w, http.StatusInternalServerError, "Errore recupero membri")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, GroupMemberListResponse{Members: members})
+}
+
+// POST /groups/:groupId/members -> addToGroup
+func (rt *_router) addToGroup(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+	userID, _, ok := rt.auth(w, r)
+	if !ok {
+		return
+	}
+	groupID := ps.ByName("groupId")
+
+	var payload MemberIDList
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil || len(payload.MemberIDs) == 0 {
+		writeError(w, http.StatusBadRequest, "Elenco membri non valido")
+		return
+	}
+
+	members, err := rt.db.AddToGroup(groupID, userID, payload.MemberIDs)
+	if err != nil {
+		if errors.Is(err, database.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "Gruppo non trovato")
+			return
+		}
+		ctx.Logger.WithError(err).Error("addToGroup")
+		writeError(w, http.StatusInternalServerError, "Errore aggiunta membri")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, GroupMemberListResponse{Members: members})
 }
 
 // PUT /groups/:groupId/name -> setGroupName
 func (rt *_router) setGroupName(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
-	w.Header().Set("Content-Type", "application/json")
+	userID, _, ok := rt.auth(w, r)
+	if !ok {
+		return
+	}
 	groupID := ps.ByName("groupId")
 
-	userID, _, err := rt.authenticate(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Non autorizzato"})
-		return
-	}
-
-	var payload struct {
-		Name string `json:"name"`
-	}
-
+	var payload GroupName
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil || payload.Name == "" {
-		w.WriteHeader(http.StatusBadRequest)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Nome gruppo non valido"})
+		writeError(w, http.StatusBadRequest, "Nome gruppo non valido")
 		return
 	}
 
-	err = rt.db.SetGroupName(groupID, payload.Name, userID)
+	err := rt.db.SetGroupName(groupID, payload.Name, userID)
 	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Gruppo non trovato o permessi insufficienti"})
+		if errors.Is(err, database.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "Gruppo non trovato")
+			return
+		}
+		ctx.Logger.WithError(err).Error("setGroupName")
+		writeError(w, http.StatusInternalServerError, "Errore aggiornamento nome")
 		return
 	}
 
-	w.WriteHeader(http.StatusOK)
-	_ = json.NewEncoder(w).Encode(payload)
+	writeJSON(w, http.StatusOK, payload)
+}
+
+// PUT /groups/:groupId/photo -> setGroupPhoto
+func (rt *_router) setGroupPhoto(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
+	userID, _, ok := rt.auth(w, r)
+	if !ok {
+		return
+	}
+	groupID := ps.ByName("groupId")
+
+	var payload GroupPhoto
+	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+		writeError(w, http.StatusBadRequest, "JSON non valido")
+		return
+	}
+
+	err := rt.db.SetGroupPhoto(groupID, payload.PhotoURL, userID)
+	if err != nil {
+		if errors.Is(err, database.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "Gruppo non trovato")
+			return
+		}
+		ctx.Logger.WithError(err).Error("setGroupPhoto")
+		writeError(w, http.StatusInternalServerError, "Errore aggiornamento foto")
+		return
+	}
+
+	writeJSON(w, http.StatusOK, payload)
 }
 
 // DELETE /groups/:groupId/members/me -> leaveGroup
 func (rt *_router) leaveGroup(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
-	w.Header().Set("Content-Type", "application/json")
-	groupID := ps.ByName("groupId")
-
-	userID, _, err := rt.authenticate(r)
-	if err != nil {
-		w.WriteHeader(http.StatusUnauthorized)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Non autorizzato"})
+	userID, _, ok := rt.auth(w, r)
+	if !ok {
 		return
 	}
+	groupID := ps.ByName("groupId")
 
-	err = rt.db.LeaveGroup(groupID, userID)
+	err := rt.db.LeaveGroup(groupID, userID)
 	if err != nil {
-		w.WriteHeader(http.StatusNotFound)
-		_ = json.NewEncoder(w).Encode(errorResponse{Message: "Impossibile abbandonare il gruppo"})
+		if errors.Is(err, database.ErrNotFound) {
+			writeError(w, http.StatusNotFound, "Gruppo non trovato")
+			return
+		}
+		ctx.Logger.WithError(err).Error("leaveGroup")
+		writeError(w, http.StatusInternalServerError, "Errore uscita dal gruppo")
 		return
 	}
 

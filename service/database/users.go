@@ -4,73 +4,68 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"strings"
 
 	"github.com/gofrs/uuid"
+	"github.com/mattn/go-sqlite3"
 )
 
-// GetOrCreateUser cerca l'utente o lo crea se non esiste, generando un nuovo token di sessione.
-func (db *appdbimpl) GetOrCreateUser(username string) (string, string, error) {
+// GetOrCreateUser cerca l'utente o lo crea se non esiste, generando un nuovo
+// token di sessione. created è true quando l'utente è stato appena creato.
+func (db *appdbimpl) GetOrCreateUser(username string) (string, string, bool, error) {
 	var userID string
+	created := false
 
-	// 1. Cerca se l'utente esiste già
 	err := db.c.QueryRow("SELECT id FROM users WHERE username = ?", username).Scan(&userID)
 	if errors.Is(err, sql.ErrNoRows) {
-		// Se non esiste, crea un nuovo UUID per l'utente
 		uUUID, err := uuid.NewV4()
 		if err != nil {
-			return "", "", fmt.Errorf("error generating user UUID: %w", err)
+			return "", "", false, fmt.Errorf("error generating user UUID: %w", err)
 		}
 		userID = "usr_" + uUUID.String()
 
-		_, err = db.c.Exec("INSERT INTO users (id, username) VALUES (?, ?)", userID, username)
-		if err != nil {
-			return "", "", fmt.Errorf("error creating new user: %w", err)
+		if _, err = db.c.Exec("INSERT INTO users (id, username) VALUES (?, ?)", userID, username); err != nil {
+			return "", "", false, fmt.Errorf("error creating new user: %w", err)
 		}
+		created = true
 	} else if err != nil {
-		return "", "", fmt.Errorf("database query error: %w", err)
+		return "", "", false, fmt.Errorf("database query error: %w", err)
 	}
 
-	// 2. Genera un token di sessione univoco
 	sUUID, err := uuid.NewV4()
 	if err != nil {
-		return "", "", fmt.Errorf("error generating session UUID: %w", err)
+		return "", "", false, fmt.Errorf("error generating session UUID: %w", err)
 	}
 	sessionToken := "sess_" + sUUID.String()
 
-	// 3. Salva la sessione nel DB
-	_, err = db.c.Exec("INSERT INTO sessions (token, user_id) VALUES (?, ?)", sessionToken, userID)
-	if err != nil {
-		return "", "", fmt.Errorf("error saving session: %w", err)
+	if _, err = db.c.Exec("INSERT INTO sessions (token, user_id) VALUES (?, ?)", sessionToken, userID); err != nil {
+		return "", "", false, fmt.Errorf("error saving session: %w", err)
 	}
 
-	return userID, sessionToken, nil
+	return userID, sessionToken, created, nil
 }
 
-// GetUserByToken recupera le info dell'utente tramite il token Bearer dell'header Authorization
+// GetUserByToken recupera userID e username a partire dal token Bearer.
 func (db *appdbimpl) GetUserByToken(token string) (string, string, error) {
 	var userID, username string
-
-	query := `
-		SELECT u.id, u.username 
-		FROM users u 
-		JOIN sessions s ON u.id = s.user_id 
-		WHERE s.token = ?`
-
-	err := db.c.QueryRow(query, token).Scan(&userID, &username)
+	err := db.c.QueryRow(`
+		SELECT u.id, u.username
+		FROM users u
+		JOIN sessions s ON u.id = s.user_id
+		WHERE s.token = ?`, token).Scan(&userID, &username)
 	if errors.Is(err, sql.ErrNoRows) {
 		return "", "", ErrUserNotFound
 	} else if err != nil {
 		return "", "", fmt.Errorf("error validating session token: %w", err)
 	}
-
 	return userID, username, nil
 }
 
-// GetUserByID restituisce i dettagli di un utente tramite il suo ID
+// GetUserByID restituisce i dettagli di un utente tramite il suo ID.
 func (db *appdbimpl) GetUserByID(userID string) (User, error) {
 	var u User
-	query := "SELECT id, username, photo_url FROM users WHERE id = ?"
-	err := db.c.QueryRow(query, userID).Scan(&u.ID, &u.Username, &u.PhotoURL)
+	err := db.c.QueryRow("SELECT id, username, photo_url FROM users WHERE id = ?", userID).
+		Scan(&u.ID, &u.Username, &u.PhotoURL)
 	if errors.Is(err, sql.ErrNoRows) {
 		return u, ErrUserNotFound
 	}
@@ -80,25 +75,45 @@ func (db *appdbimpl) GetUserByID(userID string) (User, error) {
 	return u, nil
 }
 
-// UpdateUsername aggiorna lo username dell'utente nel DB
+// UpdateUsername aggiorna lo username dell'utente, restituendo ErrUsernameTaken
+// se il nome è già in uso.
 func (db *appdbimpl) UpdateUsername(userID string, newUsername string) error {
 	_, err := db.c.Exec("UPDATE users SET username = ? WHERE id = ?", newUsername, userID)
 	if err != nil {
+		var sqliteErr sqlite3.Error
+		if errors.As(err, &sqliteErr) && sqliteErr.ExtendedCode == sqlite3.ErrConstraintUnique {
+			return ErrUsernameTaken
+		}
 		return fmt.Errorf("error updating username: %w", err)
 	}
 	return nil
 }
 
-// SearchUsers cerca gli utenti il cui username contiene la stringa fornita
-func (db *appdbimpl) SearchUsers(searchQuery string) ([]User, error) {
-	query := "SELECT id, username, photo_url FROM users WHERE username LIKE ? LIMIT 100"
-	rows, err := db.c.Query(query, "%"+searchQuery+"%")
+// SetUserPhoto aggiorna l'URL della foto profilo dell'utente.
+func (db *appdbimpl) SetUserPhoto(userID string, photoURL string) error {
+	if _, err := db.c.Exec("UPDATE users SET photo_url = ? WHERE id = ?", photoURL, userID); err != nil {
+		return fmt.Errorf("error updating user photo: %w", err)
+	}
+	return nil
+}
+
+// SearchUsers cerca gli utenti il cui username contiene la stringa fornita,
+// escludendo l'utente stesso e neutralizzando i caratteri jolly della LIKE.
+func (db *appdbimpl) SearchUsers(searchQuery string, excludeUserID string) ([]User, error) {
+	esc := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(searchQuery)
+
+	rows, err := db.c.Query(
+		`SELECT id, username, photo_url FROM users
+		 WHERE id != ? AND username LIKE ? ESCAPE '\'
+		 ORDER BY username LIMIT 100`,
+		excludeUserID, "%"+esc+"%",
+	)
 	if err != nil {
 		return nil, fmt.Errorf("error searching users: %w", err)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 
-	var users []User
+	users := []User{}
 	for rows.Next() {
 		var u User
 		if err := rows.Scan(&u.ID, &u.Username, &u.PhotoURL); err != nil {
@@ -106,14 +121,8 @@ func (db *appdbimpl) SearchUsers(searchQuery string) ([]User, error) {
 		}
 		users = append(users, u)
 	}
-
 	if err := rows.Err(); err != nil {
 		return nil, err
 	}
-	// Se non trova nessuno, restituisce una slice vuota anziché nil (per produrre "[]" in JSON invece di "null")
-	if users == nil {
-		users = []User{}
-	}
-
 	return users, nil
 }
