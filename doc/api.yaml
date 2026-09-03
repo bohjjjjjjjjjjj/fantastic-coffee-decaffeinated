@@ -1,6 +1,6 @@
 openapi: 3.0.0
 servers:
-  - url: "http://localhost:3000"
+  - url: "http://localhost:3000/v1"
 info:
   title: WASAText
   description: Fantastic Coffee (decaffeinated), the skeleton project for Web and Software architecture course
@@ -282,6 +282,7 @@ paths:
                     id: "conv_123"
                     username: "luigi_verdi"
                     photo: "https://example.com/luigi.jpg"
+                    isGroup: false
                     messages: []
               
         "400": { $ref: "#/components/responses/BadRequest" }
@@ -308,6 +309,11 @@ paths:
                   - id: "conv_123"
                     username: "luigi_verdi"
                     photo: "https://example.com/luigi.jpg"
+                    isGroup: false
+                    lastMessage:
+                      text: "Ciao!"
+                      dataSent: "2026-03-30T10:00:00Z"
+                      senderUsername: "mario_rossi"
               schema:
                 type: object
                 description: Lista delle conversazioni dell'utente
@@ -344,8 +350,11 @@ paths:
                 id: "conv_123"
                 username: "luigi_verdi"
                 photo: "https://example.com/luigi.jpg"
+                isGroup: false
                 messages:
                   - id: "msg_100"
+                    conversationId: "conv_123"
+                    senderId: "usr_123"
                     senderUsername: "mario_rossi"
                     dataSent: "2026-03-30T10:00:00Z"
                     status:
@@ -385,6 +394,8 @@ paths:
             application/json:
               example:
                 id: "msg_101"
+                conversationId: "conv_123"
+                senderId: "usr_123"
                 senderUsername: "mario_rossi"
                 dataSent: "2026-03-30T10:05:00Z"
                 status:
@@ -424,6 +435,8 @@ paths:
             application/json:
               example:
                 id: "msg_102"
+                conversationId: "conv_456"
+                senderId: "usr_123"
                 senderUsername: "mario_rossi"
                 dataSent: "2026-03-30T10:06:00Z"
                 status:
@@ -1148,6 +1161,8 @@ components:
         isGroup:
           type: boolean
           description: true se la conversazione è un gruppo
+        lastMessage:
+          $ref: "#/components/schemas/LastMessagePreview"
         messages:
           type: array
           description: Elenco dei messaggi all'interno della conversazione
