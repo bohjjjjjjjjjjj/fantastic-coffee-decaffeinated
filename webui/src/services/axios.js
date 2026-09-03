@@ -1,9 +1,12 @@
 import axios from 'axios'
 
-// __API_URL__ è iniettata da vite.config.js (usata anche in fase di valutazione).
-// In dev/preview il fallback punta al backend locale.
+// __API_URL__ è iniettata da vite.config.js (usata anche in fase di valutazione)
+// e copre sia lo sviluppo sia la produzione. Se non fosse definita, l'API si
+// assume servita dalla stessa origine della pagina: è il caso della build con
+// frontend embedded (go build -tags webui), dove il backend serve anche la UI.
+// Nessun URL assoluto è scritto qui: viene sempre derivato.
 const configuredURL =
-  typeof __API_URL__ !== 'undefined' ? __API_URL__ : 'http://localhost:3000'
+  typeof __API_URL__ !== 'undefined' ? __API_URL__ : window.location.origin
 
 // Quando la pagina viene aperta da un altro dispositivo della stessa rete
 // (es. telefono su http://192.168.1.5:4173), "localhost" indicherebbe quel

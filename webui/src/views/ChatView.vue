@@ -212,7 +212,8 @@
     <!-- Inoltra -->
     <ModalShell v-if="modal === 'forward'" title="Inoltra messaggio" @close="closeModal">
       <ErrorMsg v-if="modalError" :msg="modalError" />
-      <div class="list-group">
+      <p v-if="conversations.length" class="form-label mb-1">Conversazioni esistenti</p>
+      <div v-if="conversations.length" class="list-group mb-3">
         <button
           v-for="c in conversations"
           :key="c.id"
@@ -223,6 +224,10 @@
           {{ c.username }} <span v-if="c.isGroup" class="badge bg-secondary">Gruppo</span>
         </button>
       </div>
+      <!-- Permette di inoltrare anche a chi non ha ancora una chat con noi:
+           la conversazione viene creata al momento. -->
+      <p class="form-label mb-1">Oppure inoltra a un utente</p>
+      <UserSearch @pick="forwardToUser" />
     </ModalShell>
 
     <!-- Reagisci -->
@@ -295,6 +300,9 @@ export default {
     await this.loadMe()
     await this.loadConversations()
     this.pollTimer = setInterval(() => {
+      // loadMe() serve a propagare anche le modifiche al proprio profilo
+      // (username e foto) fatte da un'altra finestra o dispositivo.
+      this.loadMe()
       this.loadConversations()
       if (this.selectedConv) this.loadMessages(true)
     }, 4000)
@@ -442,6 +450,20 @@ export default {
     async doForward(conv) {
       try {
         await api.forwardMessage(this.selectedConv.id, this.activeMessage.id, conv.id)
+        this.closeModal()
+        await this.loadConversations()
+      } catch (err) {
+        this.modalError = err.response?.data?.message || 'Errore durante l\'inoltro.'
+      }
+    },
+    // Inoltro verso un utente con cui non esiste ancora una conversazione:
+    // createConversation la crea, o restituisce quella già esistente.
+    async forwardToUser(user) {
+      const sourceConvID = this.selectedConv.id
+      const messageID = this.activeMessage.id
+      try {
+        const res = await api.createConversation(user.username)
+        await api.forwardMessage(sourceConvID, messageID, res.data.id)
         this.closeModal()
         await this.loadConversations()
       } catch (err) {

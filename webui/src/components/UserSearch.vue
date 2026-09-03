@@ -46,14 +46,19 @@ export default {
       loading: false,
       searched: false,
       error: '',
-      timer: null
+      timer: null,
+      pollTimer: null
     }
   },
   mounted() {
     this.search()
+    // La lista contatti si aggiorna da sola: se un utente cambia username o
+    // foto, la modifica compare senza dover riaprire o ridigitare la ricerca.
+    this.pollTimer = setInterval(this.search, 4000)
   },
   beforeUnmount() {
     if (this.timer) clearTimeout(this.timer)
+    if (this.pollTimer) clearInterval(this.pollTimer)
   },
   methods: {
     debouncedSearch() {
