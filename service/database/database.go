@@ -60,6 +60,7 @@ type Message struct {
 	ContentType      string // "text" oppure "photo"
 	ContentValue     string
 	ReplyToMessageID string
+	IsForwarded      bool
 	DataSent         time.Time
 	Status           string // calcolato: "sent", "delivered", "read"
 	Reactions        []Reaction
@@ -158,6 +159,7 @@ CREATE TABLE IF NOT EXISTS messages (
 	content_type TEXT NOT NULL,
 	content_value TEXT NOT NULL,
 	reply_to_message_id TEXT,
+	is_forwarded BOOLEAN NOT NULL DEFAULT 0,
 	data_sent DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
 	FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
 	FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,

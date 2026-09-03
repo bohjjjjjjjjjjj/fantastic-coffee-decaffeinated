@@ -12,6 +12,11 @@ import (
 // SendMessage salva un nuovo messaggio nella conversazione. L'utente deve farne
 // parte, altrimenti viene restituito ErrNotFound.
 func (db *appdbimpl) SendMessage(convID, senderID, cType, cVal, replyToID string) (Message, error) {
+	return db.insertMessage(convID, senderID, cType, cVal, replyToID, false)
+}
+
+// insertMessage inserisce un messaggio, marcandolo come inoltrato quando serve.
+func (db *appdbimpl) insertMessage(convID, senderID, cType, cVal, replyToID string, forwarded bool) (Message, error) {
 	var msg Message
 
 	member, err := db.isMember(convID, senderID)
@@ -48,9 +53,9 @@ func (db *appdbimpl) SendMessage(convID, senderID, cType, cVal, replyToID string
 	}
 
 	_, err = db.c.Exec(`
-		INSERT INTO messages (id, conversation_id, sender_id, content_type, content_value, reply_to_message_id, data_sent)
-		VALUES (?, ?, ?, ?, ?, ?, ?)`,
-		msgID, convID, senderID, cType, cVal, replyValue, now)
+		INSERT INTO messages (id, conversation_id, sender_id, content_type, content_value, reply_to_message_id, is_forwarded, data_sent)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+		msgID, convID, senderID, cType, cVal, replyValue, forwarded, now)
 	if err != nil {
 		return msg, fmt.Errorf("error inserting message: %w", err)
 	}
@@ -68,6 +73,7 @@ func (db *appdbimpl) SendMessage(convID, senderID, cType, cVal, replyToID string
 		ContentType:      cType,
 		ContentValue:     cVal,
 		ReplyToMessageID: replyToID,
+		IsForwarded:      forwarded,
 		DataSent:         now,
 		Status:           "sent",
 		Reactions:        []Reaction{},
@@ -98,7 +104,7 @@ func (db *appdbimpl) ForwardMessage(originalMsgID, targetConvID, senderID string
 		return msg, ErrNotFound
 	}
 
-	return db.SendMessage(targetConvID, senderID, cType, cVal, "")
+	return db.insertMessage(targetConvID, senderID, cType, cVal, "", true)
 }
 
 // DeleteMessage elimina un messaggio inviato dall'utente. La proprietà è legata

@@ -2,8 +2,29 @@ import axios from 'axios'
 
 // __API_URL__ è iniettata da vite.config.js (usata anche in fase di valutazione).
 // In dev/preview il fallback punta al backend locale.
-const baseURL =
+const configuredURL =
   typeof __API_URL__ !== 'undefined' ? __API_URL__ : 'http://localhost:3000'
+
+// Quando la pagina viene aperta da un altro dispositivo della stessa rete
+// (es. telefono su http://192.168.1.5:4173), "localhost" indicherebbe quel
+// dispositivo e non la macchina che esegue il backend. In quel caso si riusa
+// l'hostname da cui la pagina è stata servita, mantenendo porta e percorso
+// dell'API configurata.
+function resolveBaseURL() {
+  const isLoopback = (h) =>
+    h === 'localhost' || h === '127.0.0.1' || h === '::1' || h === '[::1]'
+  try {
+    const api = new URL(configuredURL, window.location.href)
+    if (isLoopback(api.hostname) && !isLoopback(window.location.hostname)) {
+      api.hostname = window.location.hostname
+    }
+    return api.origin + api.pathname.replace(/\/$/, '')
+  } catch {
+    return configuredURL
+  }
+}
+
+const baseURL = resolveBaseURL()
 
 const instance = axios.create({
   baseURL,

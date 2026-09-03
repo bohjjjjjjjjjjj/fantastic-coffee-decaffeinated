@@ -255,7 +255,8 @@ func (db *appdbimpl) GetConversationDetails(convID, userID string) (Conversation
 
 	rows, err := db.c.Query(`
 		SELECT m.id, m.conversation_id, m.sender_id, COALESCE(u.username, ''),
-		       m.content_type, m.content_value, COALESCE(m.reply_to_message_id, ''), m.data_sent
+		       m.content_type, m.content_value, COALESCE(m.reply_to_message_id, ''),
+		       m.is_forwarded, m.data_sent
 		FROM messages m
 		LEFT JOIN users u ON u.id = m.sender_id
 		WHERE m.conversation_id = ?
@@ -269,7 +270,7 @@ func (db *appdbimpl) GetConversationDetails(convID, userID string) (Conversation
 	for rows.Next() {
 		var m Message
 		if err := rows.Scan(&m.ID, &m.ConversationID, &m.SenderID, &m.SenderUsername,
-			&m.ContentType, &m.ContentValue, &m.ReplyToMessageID, &m.DataSent); err != nil {
+			&m.ContentType, &m.ContentValue, &m.ReplyToMessageID, &m.IsForwarded, &m.DataSent); err != nil {
 			return ConversationDetails{}, err
 		}
 		details.Messages = append(details.Messages, m)

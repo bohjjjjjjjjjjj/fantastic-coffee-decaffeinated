@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS messages (
     content_type TEXT NOT NULL,   -- 'text' oppure 'photo'
     content_value TEXT NOT NULL,  -- testo del messaggio o photoUrl
     reply_to_message_id TEXT,     -- opzionale, per le risposte
+    is_forwarded BOOLEAN NOT NULL DEFAULT 0,  -- messaggio inoltrato
     data_sent DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE,
     FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,

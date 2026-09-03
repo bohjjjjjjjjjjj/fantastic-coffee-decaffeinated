@@ -41,6 +41,7 @@ type Message struct {
 	Status           StatusMessage  `json:"status"`
 	Content          MessageContent `json:"content"`
 	ReplyToMessageID string         `json:"replyToMessageId,omitempty"`
+	IsForwarded      bool           `json:"isForwarded"`
 	Reactions        []Reaction     `json:"reaction"`
 }
 
@@ -135,6 +136,7 @@ func toAPIMessage(m database.Message) Message {
 		Status:           StatusMessage{Value: m.Status},
 		Content:          content,
 		ReplyToMessageID: m.ReplyToMessageID,
+		IsForwarded:      m.IsForwarded,
 		Reactions:        reactions,
 	}
 }

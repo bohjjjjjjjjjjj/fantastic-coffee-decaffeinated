@@ -13,18 +13,39 @@
       <div
         class="p-2 px-3 rounded text-break position-relative"
         :class="isMine(msg) ? 'bg-primary text-white' : 'bg-white border'"
-        style="max-width: 75%; min-width: 140px;"
+        style="max-width: 75%; min-width: 160px;"
       >
         <small
           class="d-block mb-1"
           :class="isMine(msg) ? 'text-white-50' : 'text-muted'"
         >{{ msg.senderUsername }}</small>
 
+        <!-- Messaggio inoltrato -->
+        <div
+          v-if="msg.isForwarded"
+          class="small fst-italic mb-1 d-flex align-items-center gap-1"
+          :class="isMine(msg) ? 'text-white-50' : 'text-muted'"
+        >
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M9.5 3.5v2.2C4.9 6 2.6 8.8 2 13c1.6-2.3 3.9-3.3 7.5-3.3v2.3l4.5-4.4-4.5-4.1z" />
+          </svg>
+          Inoltrato
+        </div>
+
+        <!-- Risposta a un altro messaggio -->
         <div
           v-if="msg.replyToMessageId"
-          class="small fst-italic border-start ps-2 mb-1 opacity-75"
+          class="small fst-italic border-start ps-2 mb-1 opacity-75 d-flex align-items-center gap-1"
         >
-          &#8617; {{ replyPreview(msg.replyToMessageId) }}
+          <span>&#8617;</span>
+          <svg
+            v-if="replyIsPhoto(msg.replyToMessageId)"
+            width="13" height="13" viewBox="0 0 16 16" fill="currentColor"
+            aria-label="immagine" role="img"
+          >
+            <path d="M1.5 2h13A1.5 1.5 0 0 1 16 3.5v9A1.5 1.5 0 0 1 14.5 14h-13A1.5 1.5 0 0 1 0 12.5v-9A1.5 1.5 0 0 1 1.5 2zm12 1h-11a.5.5 0 0 0-.5.5v7l3.2-3.1a.5.5 0 0 1 .68 0L9 11l2.1-2a.5.5 0 0 1 .68 0L14 11V3.5a.5.5 0 0 0-.5-.5zM5 5.5a1.2 1.2 0 1 1-2.4 0 1.2 1.2 0 0 1 2.4 0z" />
+          </svg>
+          <span>{{ replyPreview(msg.replyToMessageId) }}</span>
         </div>
 
         <div v-if="msg.content && msg.content.photoUrl">
@@ -34,23 +55,30 @@
 
         <div class="d-flex align-items-center gap-2 mt-1">
           <small
-            :class="isMine(msg) ? 'text-white-50' : 'text-muted'"
             class="small"
+            :class="isMine(msg) ? 'text-white-50' : 'text-muted'"
           >{{ formatTime(msg.dataSent) }}</small>
-          <small v-if="isMine(msg)" class="small" :title="msg.status.value">
-            {{ statusIcon(msg.status.value) }}
-          </small>
+          <small
+            v-if="isMine(msg)"
+            class="small"
+            :class="msg.status.value === 'read' ? 'fw-bold' : ''"
+            :title="statusLabel(msg.status.value)"
+          >{{ statusIcon(msg.status.value) }}</small>
         </div>
 
-        <div v-if="msg.reaction && msg.reaction.length" class="mt-1">
+        <!-- Reazioni: emoji + autore, cosi' si vede chi ha reagito -->
+        <div v-if="msg.reaction && msg.reaction.length" class="mt-1 d-flex flex-wrap gap-1">
           <span
             v-for="r in msg.reaction"
             :key="r.id"
-            class="badge bg-light text-dark border me-1"
-            :title="r.username"
+            class="badge bg-light text-dark border d-inline-flex align-items-center gap-1"
+            :title="`Reazione di ${r.username}`"
             role="button"
             @click="onReactionClick(msg, r)"
-          >{{ r.reactionType }}</span>
+          >
+            <span>{{ r.reactionType }}</span>
+            <span class="fw-normal">{{ r.username }}</span>
+          </span>
         </div>
 
         <div class="btn-group btn-group-sm mt-2 d-block">
@@ -97,10 +125,18 @@ export default {
     isMine(msg) {
       return msg.senderUsername === this.myUsername
     },
+    findMessage(id) {
+      return this.messages.find((x) => x.id === id)
+    },
+    replyIsPhoto(id) {
+      const m = this.findMessage(id)
+      return !!(m && m.content && m.content.photoUrl)
+    },
     replyPreview(id) {
-      const m = this.messages.find((x) => x.id === id)
+      const m = this.findMessage(id)
       if (!m) return 'messaggio'
-      return m.content && m.content.photoUrl ? 'Foto' : (m.content ? m.content.text : '')
+      if (m.content && m.content.photoUrl) return 'Foto'
+      return m.content ? m.content.text : ''
     },
     onReactionClick(msg, reaction) {
       this.$emit('toggle-reaction', { msg, reaction })
@@ -110,11 +146,18 @@ export default {
       const d = new Date(iso)
       return Number.isNaN(d.getTime()) ? '' : d.toLocaleString()
     },
+    // Una spunta finche' il messaggio non e' stato letto da tutti i
+    // destinatari, due spunte quando tutti l'hanno aperto.
     statusIcon(value) {
       if (value === 'read') return '✓✓'
-      if (value === 'delivered') return '✓✓'
       if (value === 'failed') return '⚠'
       return '✓'
+    },
+    statusLabel(value) {
+      if (value === 'read') return 'Letto'
+      if (value === 'delivered') return 'Consegnato'
+      if (value === 'failed') return 'Errore'
+      return 'Inviato'
     },
     scrollToBottom() {
       const el = this.$refs.scroll
