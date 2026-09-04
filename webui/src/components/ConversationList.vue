@@ -7,24 +7,30 @@
       v-for="conv in sorted"
       :key="conv.id"
       type="button"
-      class="list-group-item list-group-item-action"
+      class="list-group-item list-group-item-action d-flex align-items-center gap-2"
       :class="{ active: selectedId === conv.id }"
       @click="$emit('select', conv)"
     >
-      <div class="d-flex justify-content-between align-items-start">
-        <span class="fw-semibold text-truncate">{{ conv.username }}</span>
-        <span v-if="conv.isGroup" class="badge bg-secondary rounded-pill ms-1">Gruppo</span>
-      </div>
-      <div v-if="conv.lastMessage" class="small text-muted text-truncate">
-        <span v-if="conv.isGroup">{{ conv.lastMessage.senderUsername }}: </span>{{ conv.lastMessage.text }}
-      </div>
+      <Avatar :src="conv.photo" :name="conv.username" :size="42" :squared="conv.isGroup" />
+      <span class="flex-grow-1 min-w-0">
+        <span class="d-flex justify-content-between align-items-start">
+          <span class="fw-semibold text-truncate">{{ conv.username }}</span>
+          <span v-if="conv.isGroup" class="badge bg-secondary rounded-pill ms-1">Gruppo</span>
+        </span>
+        <span v-if="conv.lastMessage" class="d-block small text-truncate opacity-75">
+          <span v-if="conv.isGroup">{{ conv.lastMessage.senderUsername }}: </span>{{ conv.lastMessage.text }}
+        </span>
+      </span>
     </button>
   </div>
 </template>
 
 <script>
+import Avatar from './Avatar.vue'
+
 export default {
   name: 'ConversationList',
+  components: { Avatar },
   props: {
     conversations: { type: Array, default: () => [] },
     selectedId: { type: String, default: null }
@@ -42,3 +48,9 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+.min-w-0 {
+  min-width: 0;
+}
+</style>

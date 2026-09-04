@@ -15,6 +15,15 @@ const router = createRouter({
       name: 'chat',
       component: ChatView,
       meta: { requiresAuth: true }
+    },
+    {
+      // Stessa view: la presenza di conversationId decide se mostrare la lista
+      // o la conversazione a pagina intera. Così il tasto Indietro del browser
+      // e del telefono funziona senza logica aggiuntiva.
+      path: '/chat/:conversationId',
+      name: 'conversation',
+      component: ChatView,
+      meta: { requiresAuth: true }
     }
   ]
 })

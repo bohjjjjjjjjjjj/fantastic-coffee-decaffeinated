@@ -1,5 +1,8 @@
 <template>
-  <div ref="scroll" class="flex-grow-1 p-3 overflow-auto bg-light">
+  <!-- min-height: 0 e' necessario: un flex item ha min-height auto e non si
+       restringe sotto il proprio contenuto, quindi senza questo il riquadro
+       cresce invece di scrollare e spinge il campo di scrittura fuori schermo. -->
+  <div ref="scroll" class="flex-grow-1 p-3 overflow-auto bg-light" style="min-height: 0;">
     <p v-if="!messages.length" class="text-muted text-center mt-4">
       Nessun messaggio. Scrivi qualcosa per iniziare.
     </p>
@@ -7,9 +10,16 @@
     <div
       v-for="msg in messages"
       :key="msg.id"
-      class="d-flex flex-column mb-3"
-      :class="isMine(msg) ? 'align-items-end' : 'align-items-start'"
+      class="d-flex mb-3 gap-2 align-items-end"
+      :class="isMine(msg) ? 'justify-content-end' : 'justify-content-start'"
     >
+      <!-- Avatar del mittente: solo sui messaggi altrui, il proprio e' implicito -->
+      <Avatar
+        v-if="!isMine(msg)"
+        :src="msg.senderPhotoUrl"
+        :name="msg.senderUsername"
+        :size="34"
+      />
       <div
         class="p-2 px-3 rounded text-break position-relative"
         :class="isMine(msg) ? 'bg-primary text-white' : 'bg-white border'"
@@ -113,9 +123,11 @@
 
 <script>
 import { mediaURL } from '../services/axios.js'
+import Avatar from './Avatar.vue'
 
 export default {
   name: 'MessageThread',
+  components: { Avatar },
   props: {
     messages: { type: Array, default: () => [] },
     myUsername: { type: String, default: '' }

@@ -37,6 +37,7 @@ type Message struct {
 	ConversationID   string         `json:"conversationId"`
 	SenderID         string         `json:"senderId"`
 	SenderUsername   string         `json:"senderUsername"`
+	SenderPhotoURL   string         `json:"senderPhotoUrl"`
 	DataSent         string         `json:"dataSent"`
 	Status           StatusMessage  `json:"status"`
 	Content          MessageContent `json:"content"`
@@ -127,6 +128,7 @@ func toAPIMessage(m database.Message) Message {
 		ConversationID:   m.ConversationID,
 		SenderID:         m.SenderID,
 		SenderUsername:   m.SenderUsername,
+		SenderPhotoURL:   m.SenderPhotoURL,
 		DataSent:         m.DataSent.UTC().Format("2006-01-02T15:04:05Z"),
 		Status:           StatusMessage{Value: m.Status},
 		Content:          content,

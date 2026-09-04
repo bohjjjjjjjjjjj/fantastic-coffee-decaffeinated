@@ -57,6 +57,7 @@ type Message struct {
 	ConversationID   string
 	SenderID         string
 	SenderUsername   string
+	SenderPhotoURL   string
 	ContentText      string // testo del messaggio ("" se assente)
 	ContentPhoto     string // URL della foto ("" se assente)
 	ReplyToMessageID string

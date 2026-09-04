@@ -16,11 +16,12 @@
         v-for="u in results"
         :key="u.id"
         type="button"
-        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+        class="list-group-item list-group-item-action d-flex align-items-center gap-2"
         :class="{ active: isSelected(u) }"
         @click="pick(u)"
       >
-        <span>{{ u.username }}</span>
+        <Avatar :src="u.photoUrl" :name="u.username" :size="34" />
+        <span class="flex-grow-1 text-truncate">{{ u.username }}</span>
         <span v-if="multiple && isSelected(u)">✓</span>
       </button>
     </div>
@@ -30,10 +31,11 @@
 <script>
 import api from '../services/api.js'
 import ErrorMsg from './ErrorMsg.vue'
+import Avatar from './Avatar.vue'
 
 export default {
   name: 'UserSearch',
-  components: { ErrorMsg },
+  components: { ErrorMsg, Avatar },
   props: {
     multiple: { type: Boolean, default: false },
     selected: { type: Array, default: () => [] }

@@ -60,8 +60,9 @@ func (db *appdbimpl) insertMessage(convID, senderID, text, photo, replyToID stri
 		return msg, fmt.Errorf("error inserting message: %w", err)
 	}
 
-	var senderUsername string
-	if err := db.c.QueryRow("SELECT username FROM users WHERE id = ?", senderID).Scan(&senderUsername); err != nil && !errors.Is(err, sql.ErrNoRows) {
+	var senderUsername, senderPhoto string
+	if err := db.c.QueryRow("SELECT username, photo_url FROM users WHERE id = ?", senderID).
+		Scan(&senderUsername, &senderPhoto); err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return msg, fmt.Errorf("error reading sender: %w", err)
 	}
 
@@ -70,6 +71,7 @@ func (db *appdbimpl) insertMessage(convID, senderID, text, photo, replyToID stri
 		ConversationID:   convID,
 		SenderID:         senderID,
 		SenderUsername:   senderUsername,
+		SenderPhotoURL:   senderPhoto,
 		ContentText:      text,
 		ContentPhoto:     photo,
 		ReplyToMessageID: replyToID,

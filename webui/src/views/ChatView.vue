@@ -1,126 +1,139 @@
 <template>
-  <div class="container-fluid h-100">
-    <div class="row h-100">
-      <!-- Sidebar -->
-      <div class="col-md-4 col-lg-3 border-end bg-light d-flex flex-column p-3 h-100">
-        <div class="d-flex justify-content-between align-items-center mb-3">
-          <h5 class="m-0">WASAText</h5>
-          <button type="button" class="btn btn-outline-danger btn-sm" @click="logout">Esci</button>
-        </div>
+  <div class="wt-shell d-flex flex-column">
+    <!-- ===== VISTA LISTA (route /chat) ===== -->
+    <template v-if="!routeConvId">
+      <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-white">
+        <h5 class="m-0">WASAText</h5>
+        <button type="button" class="btn btn-outline-danger btn-sm" @click="logout">Esci</button>
+      </div>
 
-        <div class="mb-3 p-2 bg-white rounded border d-flex align-items-center gap-2">
-          <img
-            v-if="me.photoUrl"
-            :src="resolveMedia(me.photoUrl)"
-            alt="foto profilo"
-            class="rounded-circle"
-            style="width: 36px; height: 36px; object-fit: cover;"
-          >
-          <div class="flex-grow-1">
+      <div class="p-3 pb-0">
+        <div class="p-2 bg-white rounded border d-flex align-items-center gap-2">
+          <Avatar :src="me.photoUrl" :name="me.username" :size="38" />
+          <div class="flex-grow-1 min-w-0">
             <small class="text-muted d-block">Collegato come</small>
-            <span class="fw-bold">{{ me.username }}</span>
+            <span class="fw-bold text-truncate d-block">{{ me.username }}</span>
           </div>
           <button type="button" class="btn btn-sm btn-outline-secondary" @click="openModal('profile')">
             Profilo
           </button>
         </div>
 
-        <div class="d-grid gap-2 mb-3">
-          <button type="button" class="btn btn-outline-primary btn-sm" @click="openModal('newChat')">
+        <div class="d-flex gap-2 mt-3">
+          <button type="button" class="btn btn-outline-primary btn-sm flex-fill" @click="openModal('newChat')">
             + Nuova chat
           </button>
-          <button type="button" class="btn btn-outline-primary btn-sm" @click="openModal('newGroup')">
+          <button type="button" class="btn btn-outline-primary btn-sm flex-fill" @click="openModal('newGroup')">
             + Nuovo gruppo
           </button>
         </div>
+      </div>
 
+      <!-- min-height:0 permette alla lista di scrollare invece di allungare la pagina -->
+      <div class="flex-grow-1 d-flex flex-column p-3" style="min-height: 0;">
         <ConversationList
           :conversations="conversations"
-          :selected-id="selectedConv ? selectedConv.id : null"
+          :selected-id="null"
+          style="min-height: 0;"
           @select="selectConversation"
         />
       </div>
+    </template>
 
-      <!-- Chat area -->
-      <div class="col-md-8 col-lg-9 d-flex flex-column h-100 p-0">
-        <template v-if="selectedConv">
-          <div class="p-3 border-bottom bg-white d-flex justify-content-between align-items-center">
-            <div>
-              <h5 class="m-0">{{ selectedConv.username }}</h5>
-              <small v-if="selectedConv.isGroup" class="text-muted">Gruppo</small>
-            </div>
-            <button
-              v-if="selectedConv.isGroup"
-              type="button"
-              class="btn btn-outline-secondary btn-sm"
-              @click="openGroupSettings"
-            >
-              Gestisci gruppo
-            </button>
-          </div>
+    <!-- ===== VISTA CONVERSAZIONE (route /chat/:conversationId) ===== -->
+    <template v-else>
+      <div class="d-flex align-items-center gap-2 p-2 p-sm-3 border-bottom bg-white">
+        <button
+          type="button"
+          class="btn btn-outline-secondary btn-sm d-flex align-items-center gap-1 flex-shrink-0"
+          title="Torna alle conversazioni"
+          @click="goBackToList"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M10.7 2.3a1 1 0 0 1 0 1.4L6.4 8l4.3 4.3a1 1 0 0 1-1.4 1.4l-5-5a1 1 0 0 1 0-1.4l5-5a1 1 0 0 1 1.4 0z" />
+          </svg>
+          <span class="d-none d-sm-inline">Indietro</span>
+        </button>
 
-          <ErrorMsg v-if="threadError" :msg="threadError" />
-
-          <MessageThread
-            :messages="messages"
-            :my-username="me.username"
-            @reply="startReply"
-            @forward="startForward"
-            @react="startReact"
-            @delete="removeMessage"
-            @toggle-reaction="toggleReaction"
-          />
-
-          <div class="p-3 bg-white border-top">
-            <div v-if="replyTo" class="small text-muted mb-1 d-flex justify-content-between">
-              <span>Rispondi a: {{ replyPreview }}</span>
-              <button type="button" class="btn-close btn-sm" aria-label="annulla" @click="replyTo = null" />
-            </div>
-            <div v-if="attachmentPreview" class="mb-2 d-flex align-items-center gap-2">
-              <img :src="attachmentPreview" alt="anteprima" class="rounded border" style="height: 56px;">
-              <span class="small text-muted">{{ attachmentName }}</span>
-              <button type="button" class="btn-close btn-sm" aria-label="rimuovi immagine" @click="clearAttachment" />
-            </div>
-            <form class="d-flex gap-2" @submit.prevent="send">
-              <input
-                ref="fileInput"
-                type="file"
-                accept="image/png,image/jpeg,image/gif,image/webp"
-                class="d-none"
-                @change="onFileSelected"
-              >
-              <button
-                type="button"
-                class="btn btn-outline-secondary"
-                title="Allega un'immagine"
-                @click="$refs.fileInput.click()"
-              >
-                <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-                  <path d="M1.5 2h13A1.5 1.5 0 0 1 16 3.5v9A1.5 1.5 0 0 1 14.5 14h-13A1.5 1.5 0 0 1 0 12.5v-9A1.5 1.5 0 0 1 1.5 2zm12 1h-11a.5.5 0 0 0-.5.5v7l3.2-3.1a.5.5 0 0 1 .68 0L9 11l2.1-2a.5.5 0 0 1 .68 0L14 11V3.5a.5.5 0 0 0-.5-.5zM5 5.5a1.2 1.2 0 1 1-2.4 0 1.2 1.2 0 0 1 2.4 0z" />
-                </svg>
-              </button>
-              <input
-                v-model="draft"
-                type="text"
-                class="form-control"
-                placeholder="Scrivi un messaggio..."
-              >
-              <button
-                type="submit"
-                class="btn btn-primary"
-                :disabled="sending || (!draft.trim() && !attachmentFile)"
-              >
-                {{ sending ? '...' : 'Invia' }}
-              </button>
-            </form>
-          </div>
-        </template>
-
-        <div v-else class="h-100 d-flex justify-content-center align-items-center text-muted">
-          Seleziona una conversazione per iniziare a chattare.
+        <Avatar
+          v-if="selectedConv"
+          :src="selectedConv.photo"
+          :name="selectedConv.username"
+          :size="40"
+          :squared="selectedConv.isGroup"
+        />
+        <div class="flex-grow-1 min-w-0">
+          <h6 class="m-0 text-truncate">{{ selectedConv && selectedConv.username ? selectedConv.username : 'Caricamento...' }}</h6>
+          <small v-if="selectedConv && selectedConv.isGroup" class="text-muted">Gruppo</small>
         </div>
+
+        <button
+          v-if="selectedConv && selectedConv.isGroup"
+          type="button"
+          class="btn btn-outline-secondary btn-sm flex-shrink-0"
+          @click="openGroupSettings"
+        >
+          <span class="d-none d-sm-inline">Gestisci gruppo</span>
+          <span class="d-sm-none">Gruppo</span>
+        </button>
       </div>
-    </div>
+
+      <ErrorMsg v-if="threadError" :msg="threadError" />
+
+      <MessageThread
+        :messages="messages"
+        :my-username="me.username"
+        @reply="startReply"
+        @forward="startForward"
+        @react="startReact"
+        @delete="removeMessage"
+        @toggle-reaction="toggleReaction"
+      />
+
+      <div class="p-2 p-sm-3 bg-white border-top">
+        <div v-if="replyTo" class="small text-muted mb-1 d-flex justify-content-between">
+          <span class="text-truncate">Rispondi a: {{ replyPreview }}</span>
+          <button type="button" class="btn-close btn-sm flex-shrink-0" aria-label="annulla" @click="replyTo = null" />
+        </div>
+        <div v-if="attachmentPreview" class="mb-2 d-flex align-items-center gap-2">
+          <img :src="attachmentPreview" alt="anteprima" class="rounded border" style="height: 56px;">
+          <span class="small text-muted text-truncate">{{ attachmentName }}</span>
+          <button type="button" class="btn-close btn-sm flex-shrink-0" aria-label="rimuovi immagine" @click="clearAttachment" />
+        </div>
+        <form class="d-flex gap-2" @submit.prevent="send">
+          <input
+            ref="fileInput"
+            type="file"
+            accept="image/png,image/jpeg,image/gif,image/webp"
+            class="d-none"
+            @change="onFileSelected"
+          >
+          <button
+            type="button"
+            class="btn btn-outline-secondary flex-shrink-0"
+            title="Allega un'immagine"
+            @click="$refs.fileInput.click()"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M1.5 2h13A1.5 1.5 0 0 1 16 3.5v9A1.5 1.5 0 0 1 14.5 14h-13A1.5 1.5 0 0 1 0 12.5v-9A1.5 1.5 0 0 1 1.5 2zm12 1h-11a.5.5 0 0 0-.5.5v7l3.2-3.1a.5.5 0 0 1 .68 0L9 11l2.1-2a.5.5 0 0 1 .68 0L14 11V3.5a.5.5 0 0 0-.5-.5zM5 5.5a1.2 1.2 0 1 1-2.4 0 1.2 1.2 0 0 1 2.4 0z" />
+            </svg>
+          </button>
+          <input
+            v-model="draft"
+            type="text"
+            class="form-control"
+            placeholder="Scrivi un messaggio..."
+          >
+          <button
+            type="submit"
+            class="btn btn-primary flex-shrink-0"
+            :disabled="sending || (!draft.trim() && !attachmentFile)"
+          >
+            {{ sending ? '...' : 'Invia' }}
+          </button>
+        </form>
+      </div>
+    </template>
 
     <!-- Profilo -->
     <ModalShell v-if="modal === 'profile'" title="Il mio profilo" @close="closeModal">
@@ -134,13 +147,7 @@
       </form>
       <label class="form-label">Foto profilo</label>
       <div class="d-flex align-items-center gap-2 mb-2">
-        <img
-          v-if="form.photoUrl"
-          :src="resolveMedia(form.photoUrl)"
-          alt="foto profilo"
-          class="rounded-circle border"
-          style="width: 56px; height: 56px; object-fit: cover;"
-        >
+        <Avatar :src="form.photoUrl" :name="me.username" :size="56" />
         <input
           type="file"
           class="form-control"
@@ -181,13 +188,7 @@
       </form>
       <label class="form-label">Foto del gruppo</label>
       <div class="d-flex align-items-center gap-2 mb-3">
-        <img
-          v-if="form.groupPhoto"
-          :src="resolveMedia(form.groupPhoto)"
-          alt="foto gruppo"
-          class="rounded border"
-          style="width: 56px; height: 56px; object-fit: cover;"
-        >
+        <Avatar :src="form.groupPhoto" :name="form.groupName" :size="56" squared />
         <input
           type="file"
           class="form-control"
@@ -250,16 +251,16 @@
 
 <script>
 import api from '../services/api.js'
-import { mediaURL } from '../services/axios.js'
 import ConversationList from '../components/ConversationList.vue'
 import MessageThread from '../components/MessageThread.vue'
 import ModalShell from '../components/ModalShell.vue'
 import UserSearch from '../components/UserSearch.vue'
 import ErrorMsg from '../components/ErrorMsg.vue'
+import Avatar from '../components/Avatar.vue'
 
 export default {
   name: 'ChatView',
-  components: { ConversationList, MessageThread, ModalShell, UserSearch, ErrorMsg },
+  components: { ConversationList, MessageThread, ModalShell, UserSearch, ErrorMsg, Avatar },
   data() {
     return {
       me: { username: localStorage.getItem('username') || '', photoUrl: '' },
@@ -294,11 +295,21 @@ export default {
       if (!this.replyTo) return ''
       const c = this.replyTo.content
       return c && c.photoUrl ? 'Foto' : (c ? c.text : '')
+    },
+    // La presenza del parametro nell'URL decide quale vista mostrare.
+    routeConvId() {
+      return this.$route.params.conversationId || null
+    }
+  },
+  watch: {
+    routeConvId() {
+      this.syncWithRoute()
     }
   },
   async mounted() {
     await this.loadMe()
     await this.loadConversations()
+    await this.syncWithRoute()
     this.pollTimer = setInterval(() => {
       // loadMe() serve a propagare anche le modifiche al proprio profilo
       // (username e foto) fatte da un'altra finestra o dispositivo.
@@ -332,11 +343,29 @@ export default {
         this.threadError = err.response?.data?.message || 'Errore nel caricamento delle conversazioni.'
       }
     },
-    async selectConversation(conv) {
-      this.selectedConv = conv
+    // Selezionare una conversazione significa navigare: la vista dedicata
+    // viene aperta dal watcher su routeConvId.
+    selectConversation(conv) {
+      if (this.routeConvId === conv.id) return
+      this.$router.push({ name: 'conversation', params: { conversationId: conv.id } })
+    },
+    goBackToList() {
+      this.$router.push({ name: 'chat' })
+    },
+    // Allinea lo stato della vista al parametro presente nell'URL.
+    async syncWithRoute() {
+      const id = this.routeConvId
       this.replyTo = null
       this.clearAttachment()
+      this.threadError = ''
       this.messages = []
+      if (!id) {
+        this.selectedConv = null
+        return
+      }
+      // Se la lista e' gia' carica si parte dai dati noti, altrimenti bastano
+      // l'id e loadMessages a completare nome, foto e tipo.
+      this.selectedConv = this.conversations.find((c) => c.id === id) || { id }
       await this.loadMessages()
     },
     async loadMessages(silent = false) {
@@ -347,6 +376,7 @@ export default {
         this.selectedConv = {
           ...this.selectedConv,
           username: res.data.username,
+          photo: res.data.photo,
           isGroup: res.data.isGroup
         }
         this.threadError = ''
@@ -355,9 +385,6 @@ export default {
           this.threadError = err.response?.data?.message || 'Errore nel caricamento dei messaggi.'
         }
       }
-    },
-    resolveMedia(url) {
-      return mediaURL(url)
     },
     // Carica il file e restituisce l'URL con cui referenziarlo.
     async uploadFile(file) {
@@ -554,8 +581,7 @@ export default {
       try {
         await api.leaveGroup(this.selectedConv.id)
         this.closeModal()
-        this.selectedConv = null
-        this.messages = []
+        this.goBackToList()
         await this.loadConversations()
       } catch (err) {
         this.modalError = err.response?.data?.message || 'Errore nell\'uscita dal gruppo.'
@@ -612,3 +638,18 @@ export default {
   }
 }
 </script>
+
+<style scoped>
+/* Riempie l'altezza resa disponibile da #app (100dvh) senza mai eccederla:
+   min-height 0 lascia che i figli scrollabili si restringano davvero. */
+.wt-shell {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Necessaria perché text-truncate funzioni dentro un contenitore flex. */
+.min-w-0 {
+  min-width: 0;
+}
+</style>
