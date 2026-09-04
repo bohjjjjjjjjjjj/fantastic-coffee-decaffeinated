@@ -16,10 +16,16 @@ export default {
 </script>
 
 <style>
+/* Colore di sfondo dell'app: definito una volta sola, così si cambia da qui. */
+:root {
+  --wt-bg: #DAE4F5;
+}
+
 html,
 body {
   height: 100%;
   overflow: hidden;
+  background-color: var(--wt-bg);
 }
 
 #app {
@@ -31,5 +37,6 @@ body {
   margin: 0;
   padding: 0;
   overflow: hidden;
+  background-color: var(--wt-bg);
 }
 </style>

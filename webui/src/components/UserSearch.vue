@@ -9,11 +9,11 @@
     >
     <ErrorMsg v-if="error" :msg="error" />
     <div class="list-group">
-      <p v-if="!loading && searched && !results.length" class="text-muted small m-0">
+      <p v-if="!loading && searched && !visibleResults.length" class="text-muted small m-0">
         Nessun utente trovato.
       </p>
       <button
-        v-for="u in results"
+        v-for="u in visibleResults"
         :key="u.id"
         type="button"
         class="list-group-item list-group-item-action d-flex align-items-center gap-2"
@@ -38,7 +38,9 @@ export default {
   components: { ErrorMsg, Avatar },
   props: {
     multiple: { type: Boolean, default: false },
-    selected: { type: Array, default: () => [] }
+    selected: { type: Array, default: () => [] },
+    // Id da nascondere dai risultati (es. chi e' gia' membro del gruppo).
+    excludeIds: { type: Array, default: () => [] }
   },
   emits: ['pick', 'update:selected'],
   data() {
@@ -50,6 +52,12 @@ export default {
       error: '',
       timer: null,
       pollTimer: null
+    }
+  },
+  computed: {
+    visibleResults() {
+      if (!this.excludeIds.length) return this.results
+      return this.results.filter((u) => !this.excludeIds.includes(u.id))
     }
   },
   mounted() {

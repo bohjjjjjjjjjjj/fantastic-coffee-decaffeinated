@@ -2,24 +2,23 @@
   <div class="wt-shell d-flex flex-column">
     <!-- ===== VISTA LISTA (route /chat) ===== -->
     <template v-if="!routeConvId">
-      <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-white">
+      <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-white gap-2">
         <h5 class="m-0">WASAText</h5>
-        <button type="button" class="btn btn-outline-danger btn-sm" @click="logout">Esci</button>
+        <!-- Foto e nome sono il punto di accesso al profilo: cliccandoli si
+             apre il popup, che contiene anche il logout. -->
+        <button
+          type="button"
+          class="btn btn-light border d-flex align-items-center gap-2 py-1 px-2 min-w-0"
+          title="Il mio profilo"
+          @click="openModal('profile')"
+        >
+          <Avatar :src="me.photoUrl" :name="me.username" :size="32" />
+          <span class="fw-semibold text-truncate">{{ me.username }}</span>
+        </button>
       </div>
 
       <div class="p-3 pb-0">
-        <div class="p-2 bg-white rounded border d-flex align-items-center gap-2">
-          <Avatar :src="me.photoUrl" :name="me.username" :size="38" />
-          <div class="flex-grow-1 min-w-0">
-            <small class="text-muted d-block">Collegato come</small>
-            <span class="fw-bold text-truncate d-block">{{ me.username }}</span>
-          </div>
-          <button type="button" class="btn btn-sm btn-outline-secondary" @click="openModal('profile')">
-            Profilo
-          </button>
-        </div>
-
-        <div class="d-flex gap-2 mt-3">
+        <div class="d-flex gap-2">
           <button type="button" class="btn btn-outline-primary btn-sm flex-fill" @click="openModal('newChat')">
             + Nuova chat
           </button>
@@ -83,6 +82,7 @@
       <MessageThread
         :messages="messages"
         :my-username="me.username"
+        :is-group="!!(selectedConv && selectedConv.isGroup)"
         @reply="startReply"
         @forward="startForward"
         @react="startReact"
@@ -136,26 +136,73 @@
     </template>
 
     <!-- Profilo -->
-    <ModalShell v-if="modal === 'profile'" title="Il mio profilo" @close="closeModal">
+    <ModalShell
+      v-if="modal === 'profile'"
+      :title="editingProfile ? 'Modifica profilo' : 'Il mio profilo'"
+      :max-width="340"
+      @close="closeModal"
+    >
+      <template #actions>
+        <button
+          v-if="!editingProfile"
+          type="button"
+          class="btn btn-sm btn-outline-secondary d-inline-flex align-items-center"
+          title="Modifica profilo"
+          aria-label="Modifica profilo"
+          @click="startEditProfile"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M12.1 1.6a1.4 1.4 0 0 1 2 2l-.8.8-2-2 .8-.8zm-1.5 1.5 2 2-7.2 7.2a.5.5 0 0 1-.2.13l-2.6.87a.3.3 0 0 1-.38-.38l.87-2.6a.5.5 0 0 1 .12-.2l7.4-7.02z" />
+          </svg>
+        </button>
+      </template>
+
       <ErrorMsg v-if="modalError" :msg="modalError" />
-      <form class="mb-3" @submit.prevent="updateUsername">
-        <label class="form-label">Username</label>
-        <div class="input-group">
-          <input v-model.trim="form.username" type="text" class="form-control" pattern="[a-zA-Z0-9_]{3,30}" required>
-          <button class="btn btn-primary" type="submit">Salva</button>
+
+      <!-- Visualizzazione -->
+      <div v-if="!editingProfile" class="text-center py-2">
+        <Avatar :src="me.photoUrl" :name="me.username" :size="150" />
+        <h5 class="mt-3 mb-4 text-break">{{ me.username }}</h5>
+        <button type="button" class="btn btn-outline-danger w-100" @click="logout">
+          Esci
+        </button>
+      </div>
+
+      <!-- Modifica -->
+      <form v-else class="text-center py-2" @submit.prevent="saveProfile">
+        <Avatar :src="form.photoUrl" :name="form.username" :size="150" />
+        <div class="mt-3 text-start">
+          <label class="form-label small">Immagine del profilo</label>
+          <input
+            type="file"
+            class="form-control form-control-sm"
+            accept="image/png,image/jpeg,image/gif,image/webp"
+            :disabled="uploading || savingProfile"
+            @change="onProfilePhotoSelected"
+          >
+          <label class="form-label small mt-3">Nome</label>
+          <input
+            v-model.trim="form.username"
+            type="text"
+            class="form-control"
+            pattern="[a-zA-Z0-9_]{3,30}"
+            required
+          >
+        </div>
+        <div class="d-flex gap-2 mt-4">
+          <button
+            type="button"
+            class="btn btn-outline-secondary flex-fill"
+            :disabled="savingProfile"
+            @click="cancelEditProfile"
+          >
+            Annulla
+          </button>
+          <button type="submit" class="btn btn-primary flex-fill" :disabled="uploading || savingProfile">
+            {{ savingProfile ? 'Salvataggio...' : 'Salva' }}
+          </button>
         </div>
       </form>
-      <label class="form-label">Foto profilo</label>
-      <div class="d-flex align-items-center gap-2 mb-2">
-        <Avatar :src="form.photoUrl" :name="me.username" :size="56" />
-        <input
-          type="file"
-          class="form-control"
-          accept="image/png,image/jpeg,image/gif,image/webp"
-          :disabled="uploading"
-          @change="onProfilePhotoSelected"
-        >
-      </div>
     </ModalShell>
 
     <!-- Nuova chat -->
@@ -197,17 +244,54 @@
           @change="onGroupPhotoSelected"
         >
       </div>
-      <div class="mb-3">
-        <label class="form-label">Membri</label>
-        <ul class="list-group mb-2">
-          <li v-for="m in groupMembers" :key="m.id" class="list-group-item py-1">{{ m.username }}</li>
+      <!-- Membri: di norma solo l'elenco, la ricerca compare su richiesta -->
+      <div v-if="!addingMembers" class="mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <label class="form-label m-0">Membri ({{ groupMembers.length }})</label>
+          <button type="button" class="btn btn-sm btn-outline-primary d-inline-flex align-items-center gap-1" @click="startAddMembers">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M8 2.5a.75.75 0 0 1 .75.75v4h4a.75.75 0 0 1 0 1.5h-4v4a.75.75 0 0 1-1.5 0v-4h-4a.75.75 0 0 1 0-1.5h4v-4A.75.75 0 0 1 8 2.5z" />
+            </svg>
+            Aggiungi
+          </button>
+        </div>
+        <ul class="list-group">
+          <li
+            v-for="m in groupMembers"
+            :key="m.id"
+            class="list-group-item py-1 d-flex align-items-center gap-2"
+          >
+            <Avatar :src="m.photoUrl" :name="m.username" :size="28" />
+            <span class="text-truncate">{{ m.username }}</span>
+          </li>
         </ul>
-        <UserSearch multiple :selected="form.members" @update:selected="form.members = $event" />
-        <button type="button" class="btn btn-outline-primary w-100 mt-2" :disabled="!form.members.length" @click="addMembers">
-          Aggiungi selezionati
+      </div>
+
+      <!-- Sezione "Aggiungi": ricerca e utenti non ancora nel gruppo -->
+      <div v-else class="mb-3">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <label class="form-label m-0">Aggiungi membri</label>
+          <button type="button" class="btn btn-sm btn-outline-secondary" @click="cancelAddMembers">
+            Fatto
+          </button>
+        </div>
+        <UserSearch
+          multiple
+          :selected="form.members"
+          :exclude-ids="groupMemberIds"
+          @update:selected="form.members = $event"
+        />
+        <button
+          type="button"
+          class="btn btn-outline-primary w-100 mt-2"
+          :disabled="!form.members.length"
+          @click="addMembers"
+        >
+          Aggiungi selezionati ({{ form.members.length }})
         </button>
       </div>
-      <button type="button" class="btn btn-outline-danger w-100" @click="leaveGroup">Esci dal gruppo</button>
+
+      <button type="button" class="btn btn-outline-danger w-100" @click="leaveGroup">Abbandona</button>
     </ModalShell>
 
     <!-- Inoltra -->
@@ -271,6 +355,9 @@ export default {
       replyTo: null,
       sending: false,
       uploading: false,
+      editingProfile: false,
+      addingMembers: false,
+      savingProfile: false,
       attachmentFile: null,
       attachmentPreview: '',
       attachmentName: '',
@@ -280,7 +367,7 @@ export default {
       groupMembers: [],
       activeMessage: null,
       pollTimer: null,
-      reactionChoices: ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉'],
+      reactionChoices: ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉', '💩'],
       form: {
         username: '',
         photoUrl: '',
@@ -299,6 +386,10 @@ export default {
     // La presenza del parametro nell'URL decide quale vista mostrare.
     routeConvId() {
       return this.$route.params.conversationId || null
+    },
+    // Chi e' gia' nel gruppo non deve comparire fra gli aggiungibili.
+    groupMemberIds() {
+      return this.groupMembers.map((m) => m.id)
     }
   },
   watch: {
@@ -530,6 +621,7 @@ export default {
       this.form.groupName = this.selectedConv.username
       this.form.groupPhoto = this.selectedConv.photo || ''
       this.form.members = []
+      this.addingMembers = false
       this.openModal('groupSettings')
       try {
         const res = await api.getGroupMembers(this.selectedConv.id)
@@ -564,6 +656,15 @@ export default {
         event.target.value = ''
       }
     },
+    startAddMembers() {
+      this.modalError = ''
+      this.form.members = []
+      this.addingMembers = true
+    },
+    cancelAddMembers() {
+      this.form.members = []
+      this.addingMembers = false
+    },
     async addMembers() {
       try {
         const res = await api.addToGroup(
@@ -587,15 +688,36 @@ export default {
         this.modalError = err.response?.data?.message || 'Errore nell\'uscita dal gruppo.'
       }
     },
-    async updateUsername() {
+    startEditProfile() {
+      this.modalError = ''
+      this.form.username = this.me.username
+      this.form.photoUrl = this.me.photoUrl || ''
+      this.editingProfile = true
+    },
+    cancelEditProfile() {
+      this.modalError = ''
+      this.editingProfile = false
+    },
+    // Salva nome e foto insieme: la foto scelta resta in anteprima finche'
+    // non si conferma, cosi' "Salva" applica davvero tutte le modifiche.
+    async saveProfile() {
+      this.savingProfile = true
+      this.modalError = ''
       try {
-        await api.setMyUserName(this.form.username)
+        if (this.form.username && this.form.username !== this.me.username) {
+          await api.setMyUserName(this.form.username)
+        }
+        if ((this.form.photoUrl || '') !== (this.me.photoUrl || '')) {
+          await api.setMyPhoto(this.form.photoUrl)
+        }
         await this.loadMe()
-        this.modalError = ''
+        this.editingProfile = false
       } catch (err) {
         this.modalError = err.response?.status === 409
           ? 'Username già in uso.'
-          : (err.response?.data?.message || 'Errore nell\'aggiornamento.')
+          : (err.response?.data?.message || "Errore nell'aggiornamento.")
+      } finally {
+        this.savingProfile = false
       }
     },
     async onProfilePhotoSelected(event) {
@@ -604,10 +726,8 @@ export default {
       this.uploading = true
       this.modalError = ''
       try {
-        const url = await this.uploadFile(file)
-        await api.setMyPhoto(url)
-        this.form.photoUrl = url
-        await this.loadMe()
+        // Caricata subito per l'anteprima, ma applicata solo con "Salva".
+        this.form.photoUrl = await this.uploadFile(file)
       } catch (err) {
         this.modalError = err.response?.data?.message || 'Errore nel caricamento della foto.'
       } finally {
@@ -627,6 +747,8 @@ export default {
     },
     closeModal() {
       this.modal = null
+      this.editingProfile = false
+      this.addingMembers = false
       this.modalError = ''
       this.activeMessage = null
     },

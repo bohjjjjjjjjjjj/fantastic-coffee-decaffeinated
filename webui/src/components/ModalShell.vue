@@ -1,9 +1,13 @@
 <template>
   <div class="modal-backdrop-custom" @click.self="$emit('close')">
-    <div class="modal-dialog-custom card shadow">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <h5 class="m-0">{{ title }}</h5>
-        <button type="button" class="btn-close" aria-label="Chiudi" @click="$emit('close')" />
+    <div class="modal-dialog-custom card shadow" :style="{ maxWidth: maxWidth + 'px' }">
+      <div class="card-header d-flex justify-content-between align-items-center gap-2">
+        <h5 class="m-0 text-truncate">{{ title }}</h5>
+        <div class="d-flex align-items-center gap-2 flex-shrink-0">
+          <!-- Azioni opzionali nell'intestazione (es. la matita del profilo) -->
+          <slot name="actions" />
+          <button type="button" class="btn-close" aria-label="Chiudi" @click="$emit('close')" />
+        </div>
       </div>
       <div class="card-body">
         <slot />
@@ -16,7 +20,8 @@
 export default {
   name: 'ModalShell',
   props: {
-    title: { type: String, default: '' }
+    title: { type: String, default: '' },
+    maxWidth: { type: Number, default: 480 }
   },
   emits: ['close']
 }
@@ -35,7 +40,6 @@ export default {
 }
 .modal-dialog-custom {
   width: 100%;
-  max-width: 480px;
   max-height: 90vh;
   overflow-y: auto;
 }
