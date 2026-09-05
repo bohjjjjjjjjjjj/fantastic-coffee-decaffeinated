@@ -13,13 +13,10 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-// maxMediaSize è la dimensione massima accettata per un'immagine caricata.
-const maxMediaSize = 8 << 20 // 8 MiB
+const maxMediaSize = 8 << 20
 
-// mediaIDRegex valida gli identificativi dei file, impedendo path traversal.
 var mediaIDRegex = regexp.MustCompile(`^med_[a-zA-Z0-9\-]+\.(png|jpg|jpeg|gif|webp)$`)
 
-// Formati immagine accettati.
 const (
 	mimePNG  = "image/png"
 	mimeJPEG = "image/jpeg"
@@ -27,7 +24,6 @@ const (
 	mimeWEBP = "image/webp"
 )
 
-// extByMIME associa a ogni formato accettato l'estensione con cui viene salvato.
 var extByMIME = map[string]string{
 	mimePNG:  "png",
 	mimeJPEG: "jpg",
@@ -35,7 +31,6 @@ var extByMIME = map[string]string{
 	mimeWEBP: "webp",
 }
 
-// mimeByExt è la mappa inversa, usata per servire i file.
 var mimeByExt = map[string]string{
 	"png":  mimePNG,
 	"jpg":  mimeJPEG,
@@ -44,15 +39,11 @@ var mimeByExt = map[string]string{
 	"webp": mimeWEBP,
 }
 
-// mediaResponse è la risposta della POST /media.
 type mediaResponse struct {
 	ID  string `json:"id"`
 	URL string `json:"url"`
 }
 
-// POST /media -> uploadMedia
-// Riceve i byte grezzi di un'immagine e la salva su disco, restituendo l'URL
-// con cui può essere referenziata in messaggi, foto profilo e foto di gruppo.
 func (rt *_router) uploadMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	if _, _, ok := rt.auth(w, r); !ok {
 		return
@@ -69,7 +60,6 @@ func (rt *_router) uploadMedia(w http.ResponseWriter, r *http.Request, ps httpro
 		return
 	}
 
-	// Il tipo si ricava dai byte, non dall'header: il client non è affidabile.
 	ext, ok := extByMIME[detectImageMIME(data)]
 	if !ok {
 		writeError(w, http.StatusBadRequest, "Formato non supportato (usa PNG, JPEG, GIF o WebP)")
@@ -98,10 +88,6 @@ func (rt *_router) uploadMedia(w http.ResponseWriter, r *http.Request, ps httpro
 	writeJSON(w, http.StatusCreated, mediaResponse{ID: mediaID, URL: "/media/" + mediaID})
 }
 
-// GET /media/:mediaId -> getMedia
-// Serve un'immagine caricata. Non richiede autenticazione perché viene
-// referenziata da tag <img>, che non inviano l'header Authorization; gli
-// identificativi sono UUID casuali e non enumerabili.
 func (rt *_router) getMedia(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	mediaID := ps.ByName("mediaId")
 	if !mediaIDRegex.MatchString(mediaID) {
@@ -122,14 +108,11 @@ func (rt *_router) getMedia(w http.ResponseWriter, r *http.Request, ps httproute
 	_, _ = w.Write(data)
 }
 
-// detectImageMIME riconosce i formati immagine ammessi dai magic bytes.
-// http.DetectContentType non riconosce WebP, quindi viene gestito a parte.
 func detectImageMIME(data []byte) string {
 	if len(data) >= 12 && string(data[0:4]) == "RIFF" && string(data[8:12]) == "WEBP" {
 		return mimeWEBP
 	}
 	mime := http.DetectContentType(data)
-	// DetectContentType può restituire parametri (es. "; charset=utf-8").
 	for i := 0; i < len(mime); i++ {
 		if mime[i] == ';' {
 			return mime[:i]

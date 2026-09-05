@@ -1,10 +1,3 @@
-# Avvio completo di WASAText: backend Go + frontend Vue dietro nginx.
-#
-#   docker compose up --build
-#
-# Frontend:  http://localhost:8080
-# Backend:   http://localhost:3000  (il browser lo raggiunge a questo indirizzo,
-#            valore di __API_URL__ fissato in vite.config.js)
 
 services:
   backend:
@@ -15,7 +8,6 @@ services:
     ports:
       - "3000:3000"
     volumes:
-      # Contiene sia il database sia le immagini caricate.
       - wasa-data:/data
     restart: unless-stopped
 

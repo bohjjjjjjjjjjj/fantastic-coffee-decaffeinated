@@ -4,7 +4,6 @@
       <div class="card-header d-flex justify-content-between align-items-center gap-2">
         <h5 class="m-0 text-truncate">{{ title }}</h5>
         <div class="d-flex align-items-center gap-2 flex-shrink-0">
-          <!-- Azioni opzionali nell'intestazione (es. la matita del profilo) -->
           <slot name="actions" />
           <button type="button" class="btn-close" aria-label="Chiudi" @click="$emit('close')" />
         </div>

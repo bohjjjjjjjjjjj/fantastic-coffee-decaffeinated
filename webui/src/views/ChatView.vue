@@ -1,11 +1,8 @@
 <template>
   <div class="wt-shell d-flex flex-column">
-    <!-- ===== VISTA LISTA (route /chat) ===== -->
     <template v-if="!routeConvId">
       <div class="d-flex justify-content-between align-items-center p-3 border-bottom bg-white gap-2">
         <h5 class="m-0">WASAText</h5>
-        <!-- Foto e nome sono il punto di accesso al profilo: cliccandoli si
-             apre il popup, che contiene anche il logout. -->
         <button
           type="button"
           class="btn btn-light border d-flex align-items-center gap-2 py-1 px-2 min-w-0"
@@ -17,19 +14,42 @@
         </button>
       </div>
 
-      <div class="p-3 pb-0">
-        <div class="d-flex gap-2">
-          <button type="button" class="btn btn-outline-primary btn-sm flex-fill" @click="openModal('newChat')">
-            + Nuova chat
-          </button>
-          <button type="button" class="btn btn-outline-primary btn-sm flex-fill" @click="openModal('newGroup')">
-            + Nuovo gruppo
-          </button>
+      <div class="p-3 pb-2">
+        <div class="position-relative wt-search-wrap">
+          <svg
+            class="wt-search-icon"
+            width="16"
+            height="16"
+            viewBox="0 0 16 16"
+            fill="currentColor"
+            aria-hidden="true"
+          >
+            <path d="M11.7 10.3a6 6 0 1 0-1.4 1.4l3 3a1 1 0 0 0 1.4-1.4l-3-3zM7 11a4 4 0 1 1 0-8 4 4 0 0 1 0 8z" />
+          </svg>
+          <input
+            v-model.trim="search"
+            type="text"
+            class="form-control ps-5"
+            placeholder="Cerca utenti per username..."
+            @input="onSearchInput"
+            @focus="onSearchInput"
+          >
+          <button
+            v-if="search"
+            type="button"
+            class="btn-close wt-search-clear"
+            aria-label="Annulla ricerca"
+            @click="clearSearch"
+          />
+
+          <div v-if="showSearchDropdown" class="wt-search-dropdown shadow">
+            <p class="small text-muted m-0 px-3 py-2 border-bottom">Utenti</p>
+            <UserSearch :query="search" @pick="createDirectConversation" />
+          </div>
         </div>
       </div>
 
-      <!-- min-height:0 permette alla lista di scrollare invece di allungare la pagina -->
-      <div class="flex-grow-1 d-flex flex-column p-3" style="min-height: 0;">
+      <div class="flex-grow-1 d-flex flex-column px-3 pb-3" style="min-height: 0;">
         <ConversationList
           :conversations="conversations"
           :selected-id="null"
@@ -37,9 +57,49 @@
           @select="selectConversation"
         />
       </div>
+
+      <div v-if="showSearchDropdown" class="wt-search-backdrop" @click="searchDropdownOpen = false" />
+
+      <div v-if="fabOpen" class="wt-fab-backdrop" @click="fabOpen = false" />
+      <div class="wt-fab-wrap">
+        <div v-if="fabOpen" class="wt-fab-menu list-group shadow">
+          <button
+            type="button"
+            class="list-group-item list-group-item-action d-flex align-items-center gap-2"
+            @click="openFromFab('newChat')"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm6 5c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4zm-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10c-2.29 0-3.516.68-4.168 1.332-.678.678-.83 1.418-.832 1.664h10z" />
+            </svg>
+            Nuova chat
+          </button>
+          <button
+            type="button"
+            class="list-group-item list-group-item-action d-flex align-items-center gap-2"
+            @click="openFromFab('newGroup')"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+              <path d="M7 14s-1 0-1-1 1-4 5-4 5 3 5 4-1 1-1 1H7zm4-6a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm-5.784 6A2.238 2.238 0 0 1 5 13c0-1.355.68-2.75 1.936-3.72A6.325 6.325 0 0 0 5 9c-4 0-5 3-5 4s1 1 1 1h4.216z" />
+              <path d="M4.5 8a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z" />
+            </svg>
+            Nuovo gruppo
+          </button>
+        </div>
+        <button
+          type="button"
+          class="btn btn-primary rounded-circle shadow wt-fab"
+          :aria-expanded="fabOpen ? 'true' : 'false'"
+          :title="fabOpen ? 'Chiudi' : 'Nuova conversazione'"
+          aria-label="Nuova conversazione"
+          @click="fabOpen = !fabOpen"
+        >
+          <svg width="24" height="24" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+            <path d="M2.678 11.894a1 1 0 0 1 .287.801 10.97 10.97 0 0 1-.398 2c1.395-.323 2.247-.697 2.634-.893a1 1 0 0 1 .71-.074A8.06 8.06 0 0 0 8 14c3.996 0 7-2.807 7-6 0-3.192-3.004-6-7-6S1 4.808 1 8c0 1.468.617 2.83 1.678 3.894zm-.493 3.905a21.682 21.682 0 0 1-.713.129c-.2.032-.352-.176-.273-.362a9.68 9.68 0 0 0 .244-.637l.003-.01c.248-.72.45-1.548.524-2.319C.743 11.37 0 9.76 0 8c0-3.866 3.582-7 8-7s8 3.134 8 7-3.582 7-8 7a9.06 9.06 0 0 1-2.347-.306c-.52.263-1.639.742-3.468 1.105z" />
+          </svg>
+        </button>
+      </div>
     </template>
 
-    <!-- ===== VISTA CONVERSAZIONE (route /chat/:conversationId) ===== -->
     <template v-else>
       <div class="d-flex align-items-center gap-2 p-2 p-sm-3 border-bottom bg-white">
         <button
@@ -135,7 +195,6 @@
       </div>
     </template>
 
-    <!-- Profilo -->
     <ModalShell
       v-if="modal === 'profile'"
       :title="editingProfile ? 'Modifica profilo' : 'Il mio profilo'"
@@ -159,7 +218,6 @@
 
       <ErrorMsg v-if="modalError" :msg="modalError" />
 
-      <!-- Visualizzazione -->
       <div v-if="!editingProfile" class="text-center py-2">
         <Avatar :src="me.photoUrl" :name="me.username" :size="150" />
         <h5 class="mt-3 mb-4 text-break">{{ me.username }}</h5>
@@ -168,7 +226,6 @@
         </button>
       </div>
 
-      <!-- Modifica -->
       <form v-else class="text-center py-2" @submit.prevent="saveProfile">
         <Avatar :src="form.photoUrl" :name="form.username" :size="150" />
         <div class="mt-3 text-start">
@@ -185,7 +242,8 @@
             v-model.trim="form.username"
             type="text"
             class="form-control"
-            pattern="[a-zA-Z0-9_]{3,30}"
+            minlength="3"
+            maxlength="16"
             required
           >
         </div>
@@ -205,25 +263,38 @@
       </form>
     </ModalShell>
 
-    <!-- Nuova chat -->
     <ModalShell v-if="modal === 'newChat'" title="Nuova chat" @close="closeModal">
       <ErrorMsg v-if="modalError" :msg="modalError" />
       <UserSearch @pick="createDirectConversation" />
     </ModalShell>
 
-    <!-- Nuovo gruppo -->
     <ModalShell v-if="modal === 'newGroup'" title="Nuovo gruppo" @close="closeModal">
       <ErrorMsg v-if="modalError" :msg="modalError" />
       <label class="form-label">Nome del gruppo</label>
       <input v-model.trim="form.groupName" type="text" class="form-control mb-3" pattern="[a-zA-Z0-9_ ]{1,50}" required>
+      <label class="form-label">Foto del gruppo</label>
+      <div class="d-flex align-items-center gap-2 mb-3">
+        <Avatar :src="form.groupPhoto" :name="form.groupName" :size="56" squared />
+        <input
+          type="file"
+          class="form-control"
+          accept="image/png,image/jpeg,image/gif,image/webp"
+          :disabled="uploading"
+          @change="onNewGroupPhotoSelected"
+        >
+      </div>
       <label class="form-label">Membri ({{ form.members.length }})</label>
       <UserSearch multiple :selected="form.members" @update:selected="form.members = $event" />
-      <button type="button" class="btn btn-primary w-100 mt-3" :disabled="!form.groupName" @click="createGroup">
-        Crea gruppo
+      <button
+        type="button"
+        class="btn btn-primary w-100 mt-3"
+        :disabled="!form.groupName || uploading"
+        @click="createGroup"
+      >
+        {{ uploading ? 'Caricamento foto...' : 'Crea gruppo' }}
       </button>
     </ModalShell>
 
-    <!-- Impostazioni gruppo -->
     <ModalShell v-if="modal === 'groupSettings'" title="Gestisci gruppo" @close="closeModal">
       <ErrorMsg v-if="modalError" :msg="modalError" />
       <form class="mb-3" @submit.prevent="renameGroup">
@@ -244,7 +315,6 @@
           @change="onGroupPhotoSelected"
         >
       </div>
-      <!-- Membri: di norma solo l'elenco, la ricerca compare su richiesta -->
       <div v-if="!addingMembers" class="mb-3">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <label class="form-label m-0">Membri ({{ groupMembers.length }})</label>
@@ -267,7 +337,6 @@
         </ul>
       </div>
 
-      <!-- Sezione "Aggiungi": ricerca e utenti non ancora nel gruppo -->
       <div v-else class="mb-3">
         <div class="d-flex justify-content-between align-items-center mb-2">
           <label class="form-label m-0">Aggiungi membri</label>
@@ -294,7 +363,6 @@
       <button type="button" class="btn btn-outline-danger w-100" @click="leaveGroup">Abbandona</button>
     </ModalShell>
 
-    <!-- Inoltra -->
     <ModalShell v-if="modal === 'forward'" title="Inoltra messaggio" @close="closeModal">
       <ErrorMsg v-if="modalError" :msg="modalError" />
       <p v-if="conversations.length" class="form-label mb-1">Conversazioni esistenti</p>
@@ -309,13 +377,10 @@
           {{ c.username }} <span v-if="c.isGroup" class="badge bg-secondary">Gruppo</span>
         </button>
       </div>
-      <!-- Permette di inoltrare anche a chi non ha ancora una chat con noi:
-           la conversazione viene creata al momento. -->
       <p class="form-label mb-1">Oppure inoltra a un utente</p>
       <UserSearch @pick="forwardToUser" />
     </ModalShell>
 
-    <!-- Reagisci -->
     <ModalShell v-if="modal === 'react'" title="Reagisci" @close="closeModal">
       <ErrorMsg v-if="modalError" :msg="modalError" />
       <div class="d-flex flex-wrap gap-2">
@@ -367,6 +432,9 @@ export default {
       groupMembers: [],
       activeMessage: null,
       pollTimer: null,
+      search: '',
+      searchDropdownOpen: false,
+      fabOpen: false,
       reactionChoices: ['👍', '❤️', '😂', '😮', '😢', '🔥', '👏', '🎉', '💩'],
       form: {
         username: '',
@@ -383,13 +451,14 @@ export default {
       const c = this.replyTo.content
       return c && c.photoUrl ? 'Foto' : (c ? c.text : '')
     },
-    // La presenza del parametro nell'URL decide quale vista mostrare.
     routeConvId() {
       return this.$route.params.conversationId || null
     },
-    // Chi e' gia' nel gruppo non deve comparire fra gli aggiungibili.
     groupMemberIds() {
       return this.groupMembers.map((m) => m.id)
+    },
+    showSearchDropdown() {
+      return this.searchDropdownOpen && !!this.search
     }
   },
   watch: {
@@ -402,8 +471,6 @@ export default {
     await this.loadConversations()
     await this.syncWithRoute()
     this.pollTimer = setInterval(() => {
-      // loadMe() serve a propagare anche le modifiche al proprio profilo
-      // (username e foto) fatte da un'altra finestra o dispositivo.
       this.loadMe()
       this.loadConversations()
       if (this.selectedConv) this.loadMessages(true)
@@ -413,13 +480,23 @@ export default {
     if (this.pollTimer) clearInterval(this.pollTimer)
   },
   methods: {
+    onSearchInput() {
+      this.searchDropdownOpen = !!this.search
+    },
+    clearSearch() {
+      this.search = ''
+      this.searchDropdownOpen = false
+    },
+    openFromFab(name) {
+      this.fabOpen = false
+      this.openModal(name)
+    },
     async loadMe() {
       try {
         const res = await api.getMyUserInfo()
         this.me = res.data
         localStorage.setItem('username', this.me.username)
       } catch {
-        /* interceptor gestisce il 401 */
       }
     },
     async loadConversations() {
@@ -434,8 +511,6 @@ export default {
         this.threadError = err.response?.data?.message || 'Errore nel caricamento delle conversazioni.'
       }
     },
-    // Selezionare una conversazione significa navigare: la vista dedicata
-    // viene aperta dal watcher su routeConvId.
     selectConversation(conv) {
       if (this.routeConvId === conv.id) return
       this.$router.push({ name: 'conversation', params: { conversationId: conv.id } })
@@ -443,7 +518,6 @@ export default {
     goBackToList() {
       this.$router.push({ name: 'chat' })
     },
-    // Allinea lo stato della vista al parametro presente nell'URL.
     async syncWithRoute() {
       const id = this.routeConvId
       this.replyTo = null
@@ -454,8 +528,6 @@ export default {
         this.selectedConv = null
         return
       }
-      // Se la lista e' gia' carica si parte dai dati noti, altrimenti bastano
-      // l'id e loadMessages a completare nome, foto e tipo.
       this.selectedConv = this.conversations.find((c) => c.id === id) || { id }
       await this.loadMessages()
     },
@@ -477,7 +549,6 @@ export default {
         }
       }
     },
-    // Carica il file e restituisce l'URL con cui referenziarlo.
     async uploadFile(file) {
       const res = await api.uploadMedia(file)
       return res.data.url
@@ -501,7 +572,6 @@ export default {
       if ((!text && !this.attachmentFile) || !this.selectedConv) return
       this.sending = true
       try {
-        // Un messaggio puo' contenere testo, immagine o entrambi.
         const content = {}
         if (text) content.text = text
         if (this.attachmentFile) content.photoUrl = await this.uploadFile(this.attachmentFile)
@@ -544,7 +614,6 @@ export default {
       }
     },
     async toggleReaction({ msg, reaction }) {
-      // Click su una reazione esistente: se è la mia, la rimuovo.
       if (reaction.userSenderId === this.me.id) {
         try {
           await api.uncommentMessage(this.selectedConv.id, msg.id, reaction.id)
@@ -574,8 +643,6 @@ export default {
         this.modalError = err.response?.data?.message || 'Errore durante l\'inoltro.'
       }
     },
-    // Inoltro verso un utente con cui non esiste ancora una conversazione:
-    // createConversation la crea, o restituisce quella già esistente.
     async forwardToUser(user) {
       const sourceConvID = this.selectedConv.id
       const messageID = this.activeMessage.id
@@ -592,6 +659,7 @@ export default {
       try {
         const res = await api.createConversation(user.username)
         this.closeModal()
+        this.clearSearch()
         await this.loadConversations()
         const conv = this.conversations.find((c) => c.id === res.data.id) || {
           id: res.data.id,
@@ -603,12 +671,29 @@ export default {
         this.modalError = err.response?.data?.message || 'Impossibile creare la chat.'
       }
     },
+    async onNewGroupPhotoSelected(event) {
+      const file = event.target.files && event.target.files[0]
+      if (!file) return
+      this.uploading = true
+      this.modalError = ''
+      try {
+        this.form.groupPhoto = await this.uploadFile(file)
+      } catch (err) {
+        this.modalError = err.response?.data?.message || 'Errore nel caricamento della foto.'
+      } finally {
+        this.uploading = false
+        event.target.value = ''
+      }
+    },
     async createGroup() {
       try {
         const res = await api.createGroup(
           this.form.groupName,
           this.form.members.map((m) => m.id)
         )
+        if (this.form.groupPhoto) {
+          await api.setGroupPhoto(res.data.id, this.form.groupPhoto)
+        }
         this.closeModal()
         await this.loadConversations()
         const conv = this.conversations.find((c) => c.id === res.data.id)
@@ -698,8 +783,6 @@ export default {
       this.modalError = ''
       this.editingProfile = false
     },
-    // Salva nome e foto insieme: la foto scelta resta in anteprima finche'
-    // non si conferma, cosi' "Salva" applica davvero tutte le modifiche.
     async saveProfile() {
       this.savingProfile = true
       this.modalError = ''
@@ -726,7 +809,6 @@ export default {
       this.uploading = true
       this.modalError = ''
       try {
-        // Caricata subito per l'anteprima, ma applicata solo con "Salva".
         this.form.photoUrl = await this.uploadFile(file)
       } catch (err) {
         this.modalError = err.response?.data?.message || 'Errore nel caricamento della foto.'
@@ -741,6 +823,7 @@ export default {
       this.form.photoUrl = this.me.photoUrl || ''
       if (name === 'newGroup') {
         this.form.groupName = ''
+        this.form.groupPhoto = ''
         this.form.members = []
       }
       this.modal = name
@@ -762,16 +845,86 @@ export default {
 </script>
 
 <style scoped>
-/* Riempie l'altezza resa disponibile da #app (100dvh) senza mai eccederla:
-   min-height 0 lascia che i figli scrollabili si restringano davvero. */
 .wt-shell {
   height: 100%;
   min-height: 0;
   overflow: hidden;
+  position: relative;
 }
 
-/* Necessaria perché text-truncate funzioni dentro un contenitore flex. */
 .min-w-0 {
   min-width: 0;
+}
+
+.wt-search-icon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #6c757d;
+  pointer-events: none;
+  z-index: 4;
+}
+
+.wt-search-clear {
+  position: absolute;
+  right: 0.75rem;
+  top: 50%;
+  transform: translateY(-50%);
+  z-index: 4;
+}
+
+.wt-search-wrap {
+  z-index: 1060;
+}
+
+.wt-search-dropdown {
+  position: absolute;
+  top: calc(100% + 0.35rem);
+  left: 0;
+  right: 0;
+  z-index: 1060;
+  max-height: 45vh;
+  overflow-y: auto;
+  border-radius: 0.75rem;
+  background-color: #fff;
+}
+
+.wt-search-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 1055;
+}
+
+.wt-fab-wrap {
+  position: absolute;
+  right: 1.25rem;
+  bottom: 1.25rem;
+  z-index: 1050;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.5rem;
+}
+
+.wt-fab {
+  width: 56px;
+  height: 56px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.wt-fab-menu {
+  min-width: 190px;
+  border-radius: 0.75rem;
+  overflow: hidden;
+}
+
+.wt-fab-backdrop {
+  position: absolute;
+  inset: 0;
+  z-index: 1040;
 }
 </style>

@@ -10,8 +10,6 @@ import (
 // policy. This function sends the policy of this API server.
 func applyCORSHandler(h http.Handler) http.Handler {
 	return handlers.CORS(
-		// Header effettivamente inviati dal frontend: senza questi il browser
-		// blocca il preflight (403) di ogni richiesta JSON o autenticata.
 		handlers.AllowedHeaders([]string{
 			"Content-Type",
 			"Authorization",

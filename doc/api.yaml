@@ -22,15 +22,17 @@ tags:
 
 paths:
 
-#--------Sessione / Auth--------
   /session:
     post:
       tags: ["Session"]
       operationId: doLogin
-      summary: Login o registrazione utente
+      summary: Logs in the user
       description: |-
-        Crea una nuova sessione per l'utente fornendo un nome utente.
+        If the user does not exist, it will be created,
+        and an identifier is returned.
+        If the user exists, the user identifier is returned.
       requestBody:
+        description: User details
         required: true
         content:
           application/json:
@@ -44,16 +46,16 @@ paths:
                   type: string
                   description: Nome utente per il login
                   minLength: 3
-                  maxLength: 30
-                  pattern: "^[a-zA-Z0-9_]+$"
-                  example: "mario_rossi"
+                  maxLength: 16
+                  pattern: "^.*?$"
+                  example: "Maria"
       responses:
-        "200":
-          description: Login effettuato con successo (utente esistente)
+        "201":
+          description: User log-in action successful
           content:
             application/json:
               example:
-                identifier: "sess_123456789"
+                identifier: "sess_987654321"
               schema:
                 type: object
                 description: Risposta con l'identificatore di sessione
@@ -66,28 +68,9 @@ paths:
                     minLength: 1
                     maxLength: 256
                     pattern: "^[a-zA-Z0-9\\-_.]+$"
-        "201":
-          description: Utente creato e login effettuato con successo
-          content:
-            application/json:
-              example:
-                identifier: "sess_987654321"
-              schema:
-                type: object
-                description: Risposta con l'identificatore di sessione per il nuovo utente
-                required:
-                  - identifier
-                properties:
-                  identifier:
-                    type: string
-                    description: Token/ID di sessione generato
-                    minLength: 1
-                    maxLength: 256
-                    pattern: "^[a-zA-Z0-9\\-_.]+$"
         "400": { $ref: "#/components/responses/BadRequest" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
-#--------Ricerca Utenti--------
   /users:
     get:
       tags: ["Profilo"]
@@ -104,8 +87,8 @@ paths:
           schema:
             type: string
             minLength: 1
-            maxLength: 30
-            pattern: "^[a-zA-Z0-9_]+$"
+            maxLength: 16
+            pattern: "^.*?$"
           description: Username da cercare
       responses:
         "200":
@@ -133,7 +116,6 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
-#--------Profilo--------
   /user/username:
     put:
       tags: ["Profilo"]
@@ -242,7 +224,6 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
-#--------Conversations--------
   /conversations:
     post:
       tags: ["Conversations"]
@@ -266,8 +247,8 @@ paths:
                   type: string
                   description: Username dell'utente con cui iniziare la chat
                   minLength: 3
-                  maxLength: 30
-                  pattern: "^[a-zA-Z0-9_]+$"
+                  maxLength: 16
+                  pattern: "^.*?$"
       responses:
         "201":
           description: Conversation created successfully
@@ -290,7 +271,6 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
-
     get:
       tags: ["Conversations"]
       operationId: getMyConversations
@@ -312,6 +292,7 @@ paths:
                     isGroup: false
                     lastMessage:
                       text: "Ciao!"
+                      isPhoto: false
                       dataSent: "2026-03-30T10:00:00Z"
                       senderUsername: "mario_rossi"
               schema:
@@ -367,8 +348,6 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
-
-#--------Messages--------
   /conversations/{conversationId}/messages:
     parameters:
       - $ref: "#/components/parameters/conversationId"
@@ -471,7 +450,6 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
-#--------Reactions-------
   /conversations/{conversationId}/messages/{messageId}/reactions:
     parameters:
       - $ref: "#/components/parameters/conversationId"
@@ -528,7 +506,6 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
-#--------Group--------
   /groups:
     post:
       tags: ["Group"]
@@ -752,7 +729,6 @@ paths:
         "404": { $ref: "#/components/responses/NotFound" }
         "500": { $ref: "#/components/responses/InternalServerError" }
 
-#--------Media--------
   /media:
     post:
       tags: ["Messages"]
@@ -816,7 +792,6 @@ paths:
               schema: { $ref: "#/components/schemas/BinaryImage" }
         "404": { $ref: "#/components/responses/NotFound" }
 
-#--------Health--------
   /liveness:
     get:
       tags: ["Session"]
@@ -830,7 +805,6 @@ paths:
           description: Il servizio è attivo
         "500": { $ref: "#/components/responses/InternalServerError" }
 
-#--------Components--------
 components:
   schemas:
     Group:
@@ -891,8 +865,8 @@ components:
           type: string
           description: Nome utente univoco
           minLength: 3
-          maxLength: 30
-          pattern: "^[a-zA-Z0-9_]+$"
+          maxLength: 16
+          pattern: "^.*?$"
         photoUrl:
           type: string
           description: URL della foto profilo dell'utente (stringa vuota se assente)
@@ -911,8 +885,8 @@ components:
           type: string
           description: Nuovo username da impostare nel profilo
           minLength: 3
-          maxLength: 30
-          pattern: "^[a-zA-Z0-9_]+$"
+          maxLength: 16
+          pattern: "^.*?$"
 
     UserPhoto:
       type: object
@@ -974,8 +948,8 @@ components:
           type: string
           description: Username del mittente del messaggio
           minLength: 3
-          maxLength: 30
-          pattern: "^[a-zA-Z0-9_]+$"
+          maxLength: 16
+          pattern: "^.*?$"
         senderPhotoUrl:
           type: string
           description: Foto profilo del mittente (stringa vuota se assente)
@@ -1133,8 +1107,8 @@ components:
           type: string
           description: Username dell'utente che ha aggiunto la reazione
           minLength: 3
-          maxLength: 30
-          pattern: "^[a-zA-Z0-9_]+$"
+          maxLength: 16
+          pattern: "^.*?$"
 
     MemberIdList:
       title: Member ID List
@@ -1214,7 +1188,6 @@ components:
           type: string
           description: Descrizione dell'errore
           example: "Risorsa non trovata"
-
 
     ConversationDetails:
       title: Conversation Details
@@ -1298,14 +1271,18 @@ components:
       type: object
       required:
         - text
+        - isPhoto
         - dataSent
         - senderUsername
       properties:
         text:
           type: string
-          description: Testo del messaggio, oppure "Foto" per i messaggi immagine
-          minLength: 1
+          description: Testo del messaggio (stringa vuota se il messaggio contiene solo un'immagine)
+          minLength: 0
           maxLength: 2000
+        isPhoto:
+          type: boolean
+          description: true se l'ultimo messaggio contiene un'immagine, così che la lista chat possa mostrarne l'icona
         dataSent:
           type: string
           description: Data e ora dell'ultimo messaggio
@@ -1317,10 +1294,9 @@ components:
           type: string
           description: Username di chi ha inviato l'ultimo messaggio
           minLength: 3
-          maxLength: 30
-          pattern: "^[a-zA-Z0-9_]+$"
+          maxLength: 16
+          pattern: "^.*?$"
 
-  #--------Responses--------
   responses:
     Unauthorized:
       description: The access token is missing or it's expired
@@ -1353,7 +1329,6 @@ components:
           schema:
             $ref: "#/components/schemas/ErrorResponse"
 
-  #--------Security--------
   securitySchemes:
     BearerAuth:
       type: http
@@ -1362,7 +1337,6 @@ components:
         Identificatore utente semplificato (non un JWT reale) ottenuto dall'operazione 'doLogin'.
         Deve essere incluso nell'header 'Authorization' per tutte le richieste protette, nel formato 'Bearer <identifier>'.
 
-  #--------Parameters--------
   parameters:
     conversationId:
       schema:
@@ -1418,6 +1392,5 @@ components:
       in: path
       required: true
       description: The ID of the reaction to remove
-
 
       

@@ -8,9 +8,6 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-// CreateGroup crea un nuovo gruppo con l'utente creatore come membro. memberIDs
-// (opzionale) elenca altri utenti da aggiungere subito; gli ID inesistenti sono
-// ignorati.
 func (db *appdbimpl) CreateGroup(groupName, ownerID string, memberIDs []string) (GroupResponse, error) {
 	var g GroupResponse
 
@@ -52,7 +49,6 @@ func (db *appdbimpl) CreateGroup(groupName, ownerID string, memberIDs []string) 
 	return g, nil
 }
 
-// GetGroupDetails restituisce i dettagli di un gruppo di cui l'utente fa parte.
 func (db *appdbimpl) GetGroupDetails(groupID, userID string) (GroupResponse, error) {
 	var g GroupResponse
 
@@ -77,8 +73,6 @@ func (db *appdbimpl) GetGroupDetails(groupID, userID string) (GroupResponse, err
 	return g, nil
 }
 
-// GetGroupMembers restituisce l'elenco dei membri di un gruppo di cui l'utente fa
-// parte.
 func (db *appdbimpl) GetGroupMembers(groupID, userID string) ([]User, error) {
 	member, err := db.isMember(groupID, userID)
 	if err != nil {
@@ -116,8 +110,6 @@ func (db *appdbimpl) groupMembers(groupID string) ([]User, error) {
 	return members, nil
 }
 
-// AddToGroup aggiunge membri a un gruppo di cui l'utente fa parte e restituisce
-// l'elenco aggiornato. Gli ID inesistenti sono ignorati.
 func (db *appdbimpl) AddToGroup(groupID, userID string, memberIDs []string) ([]User, error) {
 	member, err := db.isMember(groupID, userID)
 	if err != nil {
@@ -146,7 +138,6 @@ func (db *appdbimpl) AddToGroup(groupID, userID string, memberIDs []string) ([]U
 	return db.groupMembers(groupID)
 }
 
-// SetGroupName modifica il nome di un gruppo di cui l'utente fa parte.
 func (db *appdbimpl) SetGroupName(groupID, newName, userID string) error {
 	member, err := db.isMember(groupID, userID)
 	if err != nil {
@@ -166,7 +157,6 @@ func (db *appdbimpl) SetGroupName(groupID, newName, userID string) error {
 	return nil
 }
 
-// SetGroupPhoto modifica la foto di un gruppo di cui l'utente fa parte.
 func (db *appdbimpl) SetGroupPhoto(groupID, photoURL, userID string) error {
 	member, err := db.isMember(groupID, userID)
 	if err != nil {
@@ -186,8 +176,6 @@ func (db *appdbimpl) SetGroupPhoto(groupID, photoURL, userID string) error {
 	return nil
 }
 
-// LeaveGroup rimuove l'utente dai membri del gruppo. Se il gruppo resta senza
-// membri viene eliminato.
 func (db *appdbimpl) LeaveGroup(groupID, userID string) error {
 	tx, err := db.c.Begin()
 	if err != nil {
@@ -211,8 +199,6 @@ func (db *appdbimpl) LeaveGroup(groupID, userID string) error {
 		return err
 	}
 	if remaining == 0 {
-		// Rimozione esplicita delle righe collegate: non si fa affidamento sulle
-		// FOREIGN KEY cascade, che con il pool di connessioni non sono garantite.
 		stmts := []string{
 			"DELETE FROM reactions WHERE message_id IN (SELECT id FROM messages WHERE conversation_id = ?)",
 			"DELETE FROM message_status WHERE message_id IN (SELECT id FROM messages WHERE conversation_id = ?)",

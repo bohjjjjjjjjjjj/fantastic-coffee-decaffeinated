@@ -1,14 +1,10 @@
 <template>
-  <!-- min-height: 0 e' necessario: un flex item ha min-height auto e non si
-       restringe sotto il proprio contenuto, quindi senza questo il riquadro
-       cresce invece di scrollare e spinge il campo di scrittura fuori schermo. -->
   <div ref="scroll" class="flex-grow-1 p-3 overflow-auto wt-thread" style="min-height: 0;">
     <p v-if="!messages.length" class="text-muted text-center mt-4">
       Nessun messaggio. Scrivi qualcosa per iniziare.
     </p>
 
     <template v-for="(msg, i) in messages" :key="msg.id">
-      <!-- Separatore di giornata: compare solo quando cambia il giorno. -->
       <div v-if="isNewDay(i)" class="text-center my-3 wt-day">
         <span class="badge rounded-pill wt-day-chip">{{ dayLabel(msg.dataSent) }}</span>
       </div>
@@ -17,7 +13,6 @@
         class="d-flex mb-3 gap-2 align-items-end"
         :class="isMine(msg) ? 'justify-content-end' : 'justify-content-start'"
       >
-        <!-- Avatar del mittente: solo sui messaggi altrui, il proprio e' implicito -->
         <Avatar
           v-if="!isMine(msg)"
           :src="msg.senderPhotoUrl"
@@ -41,8 +36,6 @@
             </svg>
           </button>
 
-          <!-- Backdrop trasparente: un clic fuori chiude il menu, senza
-               listener globali da registrare e rimuovere a mano. -->
           <div v-if="openMenuId === msg.id" class="wt-menu-backdrop" @click="closeMenu" />
           <div
             v-if="openMenuId === msg.id"
@@ -69,13 +62,11 @@
             </button>
           </div>
 
-          <!-- Nei gruppi serve sapere chi scrive; sui propri messaggi no. -->
           <small
-            v-if="isGroup && !isMine(msg)"
+            v-if="!isMine(msg)"
             class="d-block mb-1 fw-semibold text-muted"
           >{{ msg.senderUsername }}</small>
 
-          <!-- Messaggio inoltrato -->
           <div
             v-if="msg.isForwarded"
             class="small fst-italic mb-1 d-flex align-items-center gap-1 text-muted"
@@ -86,7 +77,6 @@
             Inoltrato
           </div>
 
-          <!-- Risposta a un altro messaggio -->
           <div
             v-if="msg.replyToMessageId"
             class="small fst-italic border-start ps-2 mb-1 opacity-75 d-flex align-items-center gap-1"
@@ -102,7 +92,6 @@
             <span>{{ replyPreview(msg.replyToMessageId) }}</span>
           </div>
 
-          <!-- Un messaggio puo' contenere immagine, testo o entrambi -->
           <div v-if="msg.content && msg.content.photoUrl" class="mb-1">
             <img
               :src="resolveMedia(msg.content.photoUrl)"
@@ -123,7 +112,6 @@
             >{{ statusIcon(msg.status.value) }}</small>
           </div>
 
-          <!-- Reazioni: emoji + autore, cosi' si vede chi ha reagito -->
           <div v-if="msg.reaction && msg.reaction.length" class="mt-1 d-flex flex-wrap gap-1">
             <span
               v-for="r in msg.reaction"
@@ -147,7 +135,6 @@
 import { mediaURL } from '../services/axios.js'
 import Avatar from './Avatar.vue'
 
-// Tinte chiare per distinguere i mittenti nei gruppi.
 const BUBBLE_PALETTE = [
   '#DDE8FF', '#E4DDFB', '#E8E0F7', '#FBDDEB', '#FBDEE0',
   '#FDE8D5', '#DCEFE4', '#D8F3EC', '#D7F1F8', '#E5E7E9',
@@ -165,14 +152,10 @@ export default {
   emits: ['reply', 'forward', 'react', 'delete', 'toggle-reaction'],
   data() {
     return {
-      // Un solo menu aperto alla volta.
       openMenuId: null
     }
   },
   computed: {
-    // I colori sono assegnati per conversazione, nell'ordine in cui i mittenti
-    // compaiono: così due utenti non ricevono mai la stessa tinta, cosa che un
-    // hash sul nome non potrebbe garantire.
     senderColors() {
       const map = {}
       let next = 0
@@ -194,8 +177,6 @@ export default {
     this.scrollToBottom()
   },
   methods: {
-    // Nei gruppi ogni mittente ha la sua tinta; nelle chat a due resta il
-    // colore unico, e i propri messaggi non cambiano mai.
     bubbleStyle(msg) {
       if (!this.isGroup || this.isMine(msg)) return {}
       const c = this.senderColors[msg.senderUsername]
@@ -204,8 +185,6 @@ export default {
     toggleMenu(id) {
       this.openMenuId = this.openMenuId === id ? null : id
       if (this.openMenuId) {
-        // Il contenitore dei messaggi ha overflow-auto: senza questo il menu
-        // dell'ultimo messaggio verrebbe tagliato in basso.
         this.$nextTick(() => {
           const el = Array.isArray(this.$refs.menu) ? this.$refs.menu[0] : this.$refs.menu
           if (el && el.scrollIntoView) el.scrollIntoView({ block: 'nearest' })
@@ -215,7 +194,6 @@ export default {
     closeMenu() {
       this.openMenuId = null
     },
-    // Riusa gli stessi eventi di prima: la logica del padre non cambia.
     runAction(action, msg) {
       this.closeMenu()
       this.$emit(action, msg)
@@ -243,7 +221,6 @@ export default {
     onReactionClick(msg, reaction) {
       this.$emit('toggle-reaction', { msg, reaction })
     },
-    // Nella bolla resta solo l'ora: la data sta nel separatore di giornata.
     formatTime(iso) {
       if (!iso) return ''
       const d = new Date(iso)
@@ -269,8 +246,6 @@ export default {
       if (d.toDateString() === ieri.toDateString()) return 'Ieri'
       return d.toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' })
     },
-    // Una spunta finche' il messaggio non e' stato letto da tutti i
-    // destinatari, due spunte quando tutti l'hanno aperto.
     statusIcon(value) {
       if (value === 'read') return '✓✓'
       if (value === 'failed') return '⚠'
@@ -291,12 +266,10 @@ export default {
 </script>
 
 <style scoped>
-/* Sfondo del riquadro messaggi: usa il colore di tema definito in App.vue. */
 .wt-thread {
   background-color: var(--wt-bg);
 }
 
-/* Chip della giornata: resta agganciato in alto mentre si scorre. */
 .wt-day {
   position: sticky;
   top: 0;
@@ -309,14 +282,12 @@ export default {
   font-weight: 500;
 }
 
-/* Spazio a destra riservato al pulsante tre puntini. */
 .wt-bubble {
   max-width: 75%;
   min-width: 10rem;
   padding-right: 2rem !important;
 }
 
-/* Tre puntini: discreti, ancorati in alto a destra nella bolla. */
 .wt-dots {
   position: absolute;
   top: 0.25rem;
@@ -329,8 +300,6 @@ export default {
   opacity: 1;
 }
 
-/* Il menu si apre sotto il pulsante e resta dentro la larghezza della bolla,
-   quindi non esce mai dallo schermo. */
 .wt-menu {
   position: absolute;
   top: 1.9rem;
@@ -352,7 +321,6 @@ export default {
   z-index: 2;
 }
 
-/* Bolle: entrambe su fondo chiaro, quindi testo scuro e bordo tenue. */
 .wt-bubble-mine,
 .wt-bubble-other {
   border: 1px solid rgba(0, 0, 0, 0.08);

@@ -6,14 +6,12 @@ import (
 	"strings"
 )
 
-// authenticate estrae il token dall'header Authorization e recupera userID e username dal DB
 func (rt *_router) authenticate(r *http.Request) (string, string, error) {
 	authHeader := r.Header.Get("Authorization")
 	if authHeader == "" {
 		return "", "", errors.New("missing authorization header")
 	}
 
-	// Supporta sia "Bearer <token>" sia solo "<token>"
 	token := strings.TrimPrefix(authHeader, "Bearer ")
 	token = strings.TrimSpace(token)
 

@@ -10,7 +10,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-// POST /groups -> createGroup
 func (rt *_router) createGroup(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID, _, ok := rt.auth(w, r)
 	if !ok {
@@ -36,7 +35,6 @@ func (rt *_router) createGroup(w http.ResponseWriter, r *http.Request, ps httpro
 	writeJSON(w, http.StatusCreated, Group{ID: group.ID, Name: group.Name, PhotoURL: group.PhotoURL})
 }
 
-// GET /groups/:groupId -> getGroupDetails
 func (rt *_router) getGroupDetails(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID, _, ok := rt.auth(w, r)
 	if !ok {
@@ -58,7 +56,6 @@ func (rt *_router) getGroupDetails(w http.ResponseWriter, r *http.Request, ps ht
 	writeJSON(w, http.StatusOK, Group{ID: group.ID, Name: group.Name, PhotoURL: group.PhotoURL})
 }
 
-// GET /groups/:groupId/members -> getGroupMembers
 func (rt *_router) getGroupMembers(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID, _, ok := rt.auth(w, r)
 	if !ok {
@@ -80,7 +77,6 @@ func (rt *_router) getGroupMembers(w http.ResponseWriter, r *http.Request, ps ht
 	writeJSON(w, http.StatusOK, GroupMemberListResponse{Members: members})
 }
 
-// POST /groups/:groupId/members -> addToGroup
 func (rt *_router) addToGroup(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID, _, ok := rt.auth(w, r)
 	if !ok {
@@ -108,7 +104,6 @@ func (rt *_router) addToGroup(w http.ResponseWriter, r *http.Request, ps httprou
 	writeJSON(w, http.StatusOK, GroupMemberListResponse{Members: members})
 }
 
-// PUT /groups/:groupId/name -> setGroupName
 func (rt *_router) setGroupName(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID, _, ok := rt.auth(w, r)
 	if !ok {
@@ -136,7 +131,6 @@ func (rt *_router) setGroupName(w http.ResponseWriter, r *http.Request, ps httpr
 	writeJSON(w, http.StatusOK, payload)
 }
 
-// PUT /groups/:groupId/photo -> setGroupPhoto
 func (rt *_router) setGroupPhoto(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID, _, ok := rt.auth(w, r)
 	if !ok {
@@ -164,7 +158,6 @@ func (rt *_router) setGroupPhoto(w http.ResponseWriter, r *http.Request, ps http
 	writeJSON(w, http.StatusOK, payload)
 }
 
-// DELETE /groups/:groupId/members/me -> leaveGroup
 func (rt *_router) leaveGroup(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID, _, ok := rt.auth(w, r)
 	if !ok {

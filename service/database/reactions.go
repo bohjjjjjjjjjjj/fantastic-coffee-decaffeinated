@@ -6,7 +6,6 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-// messageReactions restituisce tutte le reazioni di un messaggio.
 func (db *appdbimpl) messageReactions(messageID string) ([]Reaction, error) {
 	rows, err := db.c.Query(`
 		SELECT r.id, r.reaction_type, r.user_id, COALESCE(u.username, '')
@@ -33,8 +32,6 @@ func (db *appdbimpl) messageReactions(messageID string) ([]Reaction, error) {
 	return reactions, nil
 }
 
-// messageInConversation indica se il messaggio esiste nella conversazione e se
-// l'utente ne fa parte.
 func (db *appdbimpl) messageInConversation(convID, messageID, userID string) (bool, error) {
 	var ok bool
 	err := db.c.QueryRow(`
@@ -46,8 +43,6 @@ func (db *appdbimpl) messageInConversation(convID, messageID, userID string) (bo
 	return ok, err
 }
 
-// AddReaction aggiunge (o sostituisce) la reazione dell'utente a un messaggio.
-// Una sola reazione per utente per messaggio.
 func (db *appdbimpl) AddReaction(convID, messageID, userID, reactionType string) (Reaction, error) {
 	var r Reaction
 
@@ -85,7 +80,6 @@ func (db *appdbimpl) AddReaction(convID, messageID, userID, reactionType string)
 	return Reaction{ID: reactionID, ReactionType: reactionType, UserSenderID: userID, Username: username}, nil
 }
 
-// RemoveReaction rimuove una reazione dell'utente da un messaggio.
 func (db *appdbimpl) RemoveReaction(convID, messageID, reactionID, userID string) error {
 	ok, err := db.messageInConversation(convID, messageID, userID)
 	if err != nil {

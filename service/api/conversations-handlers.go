@@ -10,7 +10,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-// POST /conversations -> createConversation
 func (rt *_router) createConversation(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID, _, ok := rt.auth(w, r)
 	if !ok {
@@ -49,7 +48,6 @@ func (rt *_router) createConversation(w http.ResponseWriter, r *http.Request, ps
 	})
 }
 
-// GET /conversations -> getMyConversations
 func (rt *_router) getMyConversations(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID, _, ok := rt.auth(w, r)
 	if !ok {
@@ -74,6 +72,7 @@ func (rt *_router) getMyConversations(w http.ResponseWriter, r *http.Request, ps
 		if c.LastMessage != nil {
 			summary.LastMessage = &LastMessagePreview{
 				Text:           c.LastMessage.Text,
+				IsPhoto:        c.LastMessage.IsPhoto,
 				DataSent:       c.LastMessage.DataSent.UTC().Format("2006-01-02T15:04:05Z"),
 				SenderUsername: c.LastMessage.SenderUsername,
 			}
@@ -86,7 +85,6 @@ func (rt *_router) getMyConversations(w http.ResponseWriter, r *http.Request, ps
 	}{Conversations: out})
 }
 
-// GET /conversations/:conversationId -> getConversation
 func (rt *_router) getConversation(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID, _, ok := rt.auth(w, r)
 	if !ok {

@@ -10,7 +10,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-// POST /conversations/:conversationId/messages/:messageId/reactions -> commentMessage
 func (rt *_router) commentMessage(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID, _, ok := rt.auth(w, r)
 	if !ok {
@@ -46,7 +45,6 @@ func (rt *_router) commentMessage(w http.ResponseWriter, r *http.Request, ps htt
 	})
 }
 
-// DELETE /conversations/:conversationId/messages/:messageId/reactions/:reactionId -> uncommentMessage
 func (rt *_router) uncommentMessage(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID, _, ok := rt.auth(w, r)
 	if !ok {

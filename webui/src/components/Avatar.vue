@@ -21,8 +21,6 @@
 <script>
 import { mediaURL } from '../services/axios.js'
 
-// Palette fissa: lo stesso nome ottiene sempre lo stesso colore, così un
-// contatto senza foto resta comunque riconoscibile a colpo d'occhio.
 const PALETTE = [
   '#0d6efd', '#6610f2', '#6f42c1', '#d63384', '#dc3545',
   '#fd7e14', '#198754', '#20c997', '#0dcaf0', '#495057'
@@ -60,7 +58,6 @@ export default {
     }
   },
   watch: {
-    // Se la foto cambia (es. il contatto la aggiorna), si riprova a caricarla.
     src() {
       this.failed = false
     }

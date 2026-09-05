@@ -10,8 +10,6 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-// CreateConversation crea (o recupera, se già esistente) una chat diretta tra
-// l'utente corrente e il destinatario indicato per username.
 func (db *appdbimpl) CreateConversation(currentUserID, targetUsername string) (ConversationSummary, error) {
 	var summary ConversationSummary
 
@@ -28,7 +26,6 @@ func (db *appdbimpl) CreateConversation(currentUserID, targetUsername string) (C
 		return summary, errors.New("cannot create conversation with yourself")
 	}
 
-	// Conversazione diretta già esistente?
 	var existingID string
 	err = db.c.QueryRow(`
 		SELECT c.id FROM conversations c
@@ -75,9 +72,6 @@ func (db *appdbimpl) CreateConversation(currentUserID, targetUsername string) (C
 	return summary, nil
 }
 
-// GetUserConversations recupera tutte le conversazioni dell'utente, ognuna una
-// sola volta, con l'anteprima dell'ultimo messaggio e in ordine cronologico
-// inverso. L'apertura della lista marca come "delivered" i messaggi ricevuti.
 func (db *appdbimpl) GetUserConversations(userID string) ([]ConversationSummary, error) {
 	if err := db.markDelivered(userID); err != nil {
 		return nil, err
@@ -128,8 +122,6 @@ func (db *appdbimpl) GetUserConversations(userID string) ([]ConversationSummary,
 		convs[i].LastMessage = lm
 	}
 
-	// Ordine cronologico inverso: le conversazioni con messaggi più recenti prima,
-	// quelle senza messaggi in fondo.
 	sort.SliceStable(convs, func(i, j int) bool {
 		ti, tj := time.Time{}, time.Time{}
 		if convs[i].LastMessage != nil {
@@ -144,8 +136,6 @@ func (db *appdbimpl) GetUserConversations(userID string) ([]ConversationSummary,
 	return convs, nil
 }
 
-// lastMessage restituisce l'anteprima dell'ultimo messaggio della conversazione,
-// oppure nil se non ci sono messaggi.
 func (db *appdbimpl) lastMessage(convID string) (*LastMessage, error) {
 	var (
 		text, photo, sender string
@@ -165,15 +155,14 @@ func (db *appdbimpl) lastMessage(convID string) (*LastMessage, error) {
 		return nil, fmt.Errorf("error reading last message: %w", err)
 	}
 
-	preview := text
-	if preview == "" && photo != "" {
-		preview = "Foto"
-	}
-	return &LastMessage{Text: preview, DataSent: dataSent, SenderUsername: sender}, nil
+	return &LastMessage{
+		Text:           text,
+		IsPhoto:        photo != "",
+		DataSent:       dataSent,
+		SenderUsername: sender,
+	}, nil
 }
 
-// markDelivered segna come "delivered" tutti i messaggi che l'utente può vedere
-// e che non ha inviato, senza mai retrocedere quelli già "read".
 func (db *appdbimpl) markDelivered(userID string) error {
 	_, err := db.c.Exec(`
 		INSERT OR IGNORE INTO message_status (message_id, user_id, status)
@@ -187,8 +176,6 @@ func (db *appdbimpl) markDelivered(userID string) error {
 	return nil
 }
 
-// markRead segna come "read" tutti i messaggi della conversazione non inviati
-// dall'utente.
 func (db *appdbimpl) markRead(convID, userID string) error {
 	_, err := db.c.Exec(`
 		INSERT INTO message_status (message_id, user_id, status)
@@ -203,9 +190,6 @@ func (db *appdbimpl) markRead(convID, userID string) error {
 	return nil
 }
 
-// messageStatus calcola lo stato aggregato di un messaggio dal punto di vista dei
-// destinatari: "read" se tutti l'hanno letto, "delivered" se tutti l'hanno
-// ricevuto, altrimenti "sent".
 func (db *appdbimpl) messageStatus(convID, msgID, senderID string) (string, error) {
 	var total, readCnt, delivCnt int
 	err := db.c.QueryRow(`
@@ -231,8 +215,6 @@ func (db *appdbimpl) messageStatus(convID, msgID, senderID string) (string, erro
 	}
 }
 
-// GetConversationDetails recupera la conversazione e tutti i suoi messaggi.
-// L'apertura marca come "read" i messaggi ricevuti dall'utente.
 func (db *appdbimpl) GetConversationDetails(convID, userID string) (ConversationDetails, error) {
 	member, err := db.isMember(convID, userID)
 	if err != nil {

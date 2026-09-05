@@ -1,18 +1,8 @@
 import axios from 'axios'
 
-// __API_URL__ è iniettata da vite.config.js (usata anche in fase di valutazione)
-// e copre sia lo sviluppo sia la produzione. Se non fosse definita, l'API si
-// assume servita dalla stessa origine della pagina: è il caso della build con
-// frontend embedded (go build -tags webui), dove il backend serve anche la UI.
-// Nessun URL assoluto è scritto qui: viene sempre derivato.
 const configuredURL =
   typeof __API_URL__ !== 'undefined' ? __API_URL__ : window.location.origin
 
-// Quando la pagina viene aperta da un altro dispositivo della stessa rete
-// (es. telefono su http://192.168.1.5:4173), "localhost" indicherebbe quel
-// dispositivo e non la macchina che esegue il backend. In quel caso si riusa
-// l'hostname da cui la pagina è stata servita, mantenendo porta e percorso
-// dell'API configurata.
 function resolveBaseURL() {
   const isLoopback = (h) =>
     h === 'localhost' || h === '127.0.0.1' || h === '::1' || h === '[::1]'
@@ -29,8 +19,6 @@ function resolveBaseURL() {
 
 const baseURL = resolveBaseURL()
 
-// I file caricati sono referenziati con URL relativi (/media/...), serviti dal
-// backend: vanno quindi risolti sulla base API, non sull'origine della pagina.
 export function mediaURL(url) {
   if (!url) return ''
   if (/^https?:\/\//i.test(url)) return url
@@ -47,7 +35,6 @@ const instance = axios.create({
   }
 })
 
-// Inserisce il token Bearer nell'header Authorization se presente nel localStorage.
 instance.interceptors.request.use((config) => {
   const token = localStorage.getItem('token')
   if (token) {
@@ -56,7 +43,6 @@ instance.interceptors.request.use((config) => {
   return config
 })
 
-// Su 401 pulisce la sessione e torna al login.
 instance.interceptors.response.use(
   (response) => response,
   (error) => {

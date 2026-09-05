@@ -10,8 +10,6 @@ import (
 	"github.com/mattn/go-sqlite3"
 )
 
-// GetOrCreateUser cerca l'utente o lo crea se non esiste, generando un nuovo
-// token di sessione. created è true quando l'utente è stato appena creato.
 func (db *appdbimpl) GetOrCreateUser(username string) (string, string, bool, error) {
 	var userID string
 	created := false
@@ -45,7 +43,6 @@ func (db *appdbimpl) GetOrCreateUser(username string) (string, string, bool, err
 	return userID, sessionToken, created, nil
 }
 
-// GetUserByToken recupera userID e username a partire dal token Bearer.
 func (db *appdbimpl) GetUserByToken(token string) (string, string, error) {
 	var userID, username string
 	err := db.c.QueryRow(`
@@ -61,7 +58,6 @@ func (db *appdbimpl) GetUserByToken(token string) (string, string, error) {
 	return userID, username, nil
 }
 
-// GetUserByID restituisce i dettagli di un utente tramite il suo ID.
 func (db *appdbimpl) GetUserByID(userID string) (User, error) {
 	var u User
 	err := db.c.QueryRow("SELECT id, username, photo_url FROM users WHERE id = ?", userID).
@@ -75,8 +71,6 @@ func (db *appdbimpl) GetUserByID(userID string) (User, error) {
 	return u, nil
 }
 
-// UpdateUsername aggiorna lo username dell'utente, restituendo ErrUsernameTaken
-// se il nome è già in uso.
 func (db *appdbimpl) UpdateUsername(userID string, newUsername string) error {
 	_, err := db.c.Exec("UPDATE users SET username = ? WHERE id = ?", newUsername, userID)
 	if err != nil {
@@ -89,7 +83,6 @@ func (db *appdbimpl) UpdateUsername(userID string, newUsername string) error {
 	return nil
 }
 
-// SetUserPhoto aggiorna l'URL della foto profilo dell'utente.
 func (db *appdbimpl) SetUserPhoto(userID string, photoURL string) error {
 	if _, err := db.c.Exec("UPDATE users SET photo_url = ? WHERE id = ?", photoURL, userID); err != nil {
 		return fmt.Errorf("error updating user photo: %w", err)
@@ -97,8 +90,6 @@ func (db *appdbimpl) SetUserPhoto(userID string, photoURL string) error {
 	return nil
 }
 
-// SearchUsers cerca gli utenti il cui username contiene la stringa fornita,
-// escludendo l'utente stesso e neutralizzando i caratteri jolly della LIKE.
 func (db *appdbimpl) SearchUsers(searchQuery string, excludeUserID string) ([]User, error) {
 	esc := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`).Replace(searchQuery)
 

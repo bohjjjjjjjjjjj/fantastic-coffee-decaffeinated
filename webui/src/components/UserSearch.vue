@@ -1,7 +1,8 @@
 <template>
   <div>
     <input
-      v-model.trim="query"
+      v-if="query === null"
+      v-model.trim="internalQuery"
       type="text"
       class="form-control mb-2"
       placeholder="Cerca utenti per username..."
@@ -9,7 +10,7 @@
     >
     <ErrorMsg v-if="error" :msg="error" />
     <div class="list-group">
-      <p v-if="!loading && searched && !visibleResults.length" class="text-muted small m-0">
+      <p v-if="!loading && searched && !visibleResults.length" class="text-muted small m-0 px-3 py-2">
         Nessun utente trovato.
       </p>
       <button
@@ -39,13 +40,13 @@ export default {
   props: {
     multiple: { type: Boolean, default: false },
     selected: { type: Array, default: () => [] },
-    // Id da nascondere dai risultati (es. chi e' gia' membro del gruppo).
-    excludeIds: { type: Array, default: () => [] }
+    excludeIds: { type: Array, default: () => [] },
+    query: { type: String, default: null }
   },
   emits: ['pick', 'update:selected'],
   data() {
     return {
-      query: '',
+      internalQuery: '',
       results: [],
       loading: false,
       searched: false,
@@ -55,15 +56,21 @@ export default {
     }
   },
   computed: {
+    effectiveQuery() {
+      return this.query === null ? this.internalQuery : this.query
+    },
     visibleResults() {
       if (!this.excludeIds.length) return this.results
       return this.results.filter((u) => !this.excludeIds.includes(u.id))
     }
   },
+  watch: {
+    query() {
+      this.debouncedSearch()
+    }
+  },
   mounted() {
     this.search()
-    // La lista contatti si aggiorna da sola: se un utente cambia username o
-    // foto, la modifica compare senza dover riaprire o ridigitare la ricerca.
     this.pollTimer = setInterval(this.search, 4000)
   },
   beforeUnmount() {
@@ -76,10 +83,12 @@ export default {
       this.timer = setTimeout(this.search, 300)
     },
     async search() {
+      const asked = this.effectiveQuery
       this.loading = true
       this.error = ''
       try {
-        const res = await api.searchUsers(this.query)
+        const res = await api.searchUsers(asked)
+        if (asked !== this.effectiveQuery) return
         this.results = res.data.users || []
         this.searched = true
       } catch (err) {

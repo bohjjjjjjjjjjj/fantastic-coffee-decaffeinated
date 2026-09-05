@@ -10,7 +10,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-// GET /user -> getMyUserInfo
 func (rt *_router) getMyUserInfo(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID, _, ok := rt.auth(w, r)
 	if !ok {
@@ -31,7 +30,6 @@ func (rt *_router) getMyUserInfo(w http.ResponseWriter, r *http.Request, ps http
 	writeJSON(w, http.StatusOK, user)
 }
 
-// PUT /user/username -> setMyUserName
 func (rt *_router) setMyUserName(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID, _, ok := rt.auth(w, r)
 	if !ok {
@@ -62,7 +60,6 @@ func (rt *_router) setMyUserName(w http.ResponseWriter, r *http.Request, ps http
 	writeJSON(w, http.StatusOK, payload)
 }
 
-// PUT /user/photo -> setMyPhoto
 func (rt *_router) setMyPhoto(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID, _, ok := rt.auth(w, r)
 	if !ok {
@@ -84,7 +81,6 @@ func (rt *_router) setMyPhoto(w http.ResponseWriter, r *http.Request, ps httprou
 	writeJSON(w, http.StatusOK, payload)
 }
 
-// GET /user/photo -> getMyPhoto
 func (rt *_router) getMyPhoto(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID, _, ok := rt.auth(w, r)
 	if !ok {
@@ -105,7 +101,6 @@ func (rt *_router) getMyPhoto(w http.ResponseWriter, r *http.Request, ps httprou
 	writeJSON(w, http.StatusOK, UserPhoto{PhotoURL: user.PhotoURL})
 }
 
-// GET /users -> searchUsers
 func (rt *_router) searchUsers(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID, _, ok := rt.auth(w, r)
 	if !ok {

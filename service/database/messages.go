@@ -9,13 +9,10 @@ import (
 	"github.com/gofrs/uuid"
 )
 
-// SendMessage salva un nuovo messaggio nella conversazione. L'utente deve farne
-// parte, altrimenti viene restituito ErrNotFound.
 func (db *appdbimpl) SendMessage(convID, senderID, text, photo, replyToID string) (Message, error) {
 	return db.insertMessage(convID, senderID, text, photo, replyToID, false)
 }
 
-// insertMessage inserisce un messaggio, marcandolo come inoltrato quando serve.
 func (db *appdbimpl) insertMessage(convID, senderID, text, photo, replyToID string, forwarded bool) (Message, error) {
 	var msg Message
 
@@ -82,8 +79,6 @@ func (db *appdbimpl) insertMessage(convID, senderID, text, photo, replyToID stri
 	}, nil
 }
 
-// ForwardMessage copia un messaggio in un'altra conversazione. L'utente deve far
-// parte sia della conversazione di origine sia di quella di destinazione.
 func (db *appdbimpl) ForwardMessage(originalMsgID, targetConvID, senderID string) (Message, error) {
 	var msg Message
 
@@ -109,8 +104,6 @@ func (db *appdbimpl) ForwardMessage(originalMsgID, targetConvID, senderID string
 	return db.insertMessage(targetConvID, senderID, text, photo, "", true)
 }
 
-// DeleteMessage elimina un messaggio inviato dall'utente. La proprietà è legata
-// a sender_id, quindi resta valida anche dopo un cambio di username.
 func (db *appdbimpl) DeleteMessage(msgID, convID, senderID string) error {
 	tx, err := db.c.Begin()
 	if err != nil {

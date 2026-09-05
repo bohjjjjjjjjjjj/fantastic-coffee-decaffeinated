@@ -11,7 +11,6 @@ import (
 	"github.com/julienschmidt/httprouter"
 )
 
-// POST /conversations/:conversationId/messages -> sendMessage
 func (rt *_router) sendMessage(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID, _, ok := rt.auth(w, r)
 	if !ok {
@@ -25,7 +24,6 @@ func (rt *_router) sendMessage(w http.ResponseWriter, r *http.Request, ps httpro
 		return
 	}
 
-	// Un messaggio può contenere testo, un'immagine o entrambi.
 	text := strings.TrimSpace(payload.Content.Text)
 	photo := strings.TrimSpace(payload.Content.PhotoURL)
 	if text == "" && photo == "" {
@@ -47,7 +45,6 @@ func (rt *_router) sendMessage(w http.ResponseWriter, r *http.Request, ps httpro
 	writeJSON(w, http.StatusCreated, toAPIMessage(msg))
 }
 
-// POST /conversations/:conversationId/messages/:messageId/forward -> forwardMessage
 func (rt *_router) forwardMessage(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID, _, ok := rt.auth(w, r)
 	if !ok {
@@ -75,7 +72,6 @@ func (rt *_router) forwardMessage(w http.ResponseWriter, r *http.Request, ps htt
 	writeJSON(w, http.StatusCreated, toAPIMessage(newMsg))
 }
 
-// DELETE /conversations/:conversationId/messages/:messageId -> deleteMessage
 func (rt *_router) deleteMessage(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	userID, _, ok := rt.auth(w, r)
 	if !ok {

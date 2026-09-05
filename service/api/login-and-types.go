@@ -16,8 +16,6 @@ type loginResponse struct {
 	Identifier string `json:"identifier"`
 }
 
-// POST /session -> doLogin
-// 201 se l'utente è appena stato creato, 200 se esisteva già.
 func (rt *_router) doLogin(w http.ResponseWriter, r *http.Request, ps httprouter.Params, ctx reqcontext.RequestContext) {
 	var payload loginRequest
 	if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
@@ -26,20 +24,16 @@ func (rt *_router) doLogin(w http.ResponseWriter, r *http.Request, ps httprouter
 	}
 
 	if !usernameRegex.MatchString(payload.Name) {
-		writeError(w, http.StatusBadRequest, "Username non valido (3-30 caratteri alfanumerici o _)")
+		writeError(w, http.StatusBadRequest, "Username non valido (da 3 a 16 caratteri)")
 		return
 	}
 
-	_, token, created, err := rt.db.GetOrCreateUser(payload.Name)
+	_, token, _, err := rt.db.GetOrCreateUser(payload.Name)
 	if err != nil {
 		ctx.Logger.WithError(err).Error("doLogin: error creating user")
 		writeError(w, http.StatusInternalServerError, "Errore interno durante il login")
 		return
 	}
 
-	status := http.StatusOK
-	if created {
-		status = http.StatusCreated
-	}
-	writeJSON(w, status, loginResponse{Identifier: token})
+	writeJSON(w, http.StatusCreated, loginResponse{Identifier: token})
 }

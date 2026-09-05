@@ -52,7 +52,6 @@ type Config struct {
 	// Database is the instance of database.AppDatabase where data are saved
 	Database database.AppDatabase
 
-	// MediaPath is the directory where uploaded images are stored
 	MediaPath string
 }
 
@@ -103,6 +102,5 @@ type _router struct {
 
 	db database.AppDatabase
 
-	// mediaPath is the directory holding the uploaded images
 	mediaPath string
 }
