@@ -38,6 +38,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 )
 
@@ -82,6 +83,16 @@ func run() error {
 
 	// Start Database
 	logger.Println("initializing database support")
+	// SQLite creates the database file, but not the directory holding it: if the
+	// configured path points to a directory that does not exist yet, opening the
+	// database fails with "unable to open database file".
+	if dbDir := filepath.Dir(cfg.DB.Filename); dbDir != "" && dbDir != "." {
+		if err := os.MkdirAll(dbDir, 0o750); err != nil {
+			logger.WithError(err).Error("error creating database directory")
+			return fmt.Errorf("creating database directory %q: %w", dbDir, err)
+		}
+	}
+
 	dbconn, err := sql.Open("sqlite3", cfg.DB.Filename)
 	if err != nil {
 		logger.WithError(err).Error("error opening SQLite DB")
