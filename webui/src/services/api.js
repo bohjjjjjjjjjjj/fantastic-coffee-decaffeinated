@@ -14,6 +14,7 @@ export default {
     axios.post('/media', file, {
       headers: { 'Content-Type': file.type || 'application/octet-stream' }
     }),
+  getMedia: (mediaId) => axios.get(`/media/${mediaId}`, { responseType: 'blob' }),
 
   getMyConversations: () => axios.get('/conversations'),
   createConversation: (username) => axios.post('/conversations', { username }),
@@ -52,5 +53,7 @@ export default {
   setGroupName: (groupId, name) => axios.put(`/groups/${groupId}/name`, { name }),
   setGroupPhoto: (groupId, photoUrl) =>
     axios.put(`/groups/${groupId}/photo`, { photoUrl }),
-  leaveGroup: (groupId) => axios.delete(`/groups/${groupId}/members/me`)
+  leaveGroup: (groupId) => axios.delete(`/groups/${groupId}/members/me`),
+
+  liveness: () => axios.get('/liveness')
 }

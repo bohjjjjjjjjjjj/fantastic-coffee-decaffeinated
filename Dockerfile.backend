@@ -23,7 +23,7 @@ RUN apt-get update \
  && useradd --system --uid 10001 wasa \
  && mkdir -p /data/media \
  && chown -R wasa:wasa /data \
- && chmod -R 770 /data
+ && chmod -R 777 /data
 
 COPY --from=builder /out/webapi /usr/local/bin/webapi
 COPY --from=builder /out/healthcheck /usr/local/bin/healthcheck
