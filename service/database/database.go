@@ -177,6 +177,28 @@ func New(db *sql.DB) (AppDatabase, error) {
 		return nil, fmt.Errorf("error creating database structure: %w", err)
 	}
 
+	// === SEED UTENTI PREDEFINITI ===
+	seedQuery := `
+	INSERT OR IGNORE INTO users (id, username, photo_url) VALUES 
+		('usr_hiroto', 'hiroto', ''),
+		('usr_sakuragi', 'sakuragi', ''),
+		('usr_naruto', 'naruto', ''),
+		('usr_luffy', 'luffy', ''),
+		('usr_tohru', 'tohru', ''),
+		('usr_meow', 'meow', '');
+
+	INSERT OR IGNORE INTO sessions (token, user_id) VALUES 
+		('sess_hiroto', 'usr_hiroto'),
+		('sess_sakuragi', 'usr_sakuragi'),
+		('sess_naruto', 'usr_naruto'),
+		('sess_luffy', 'usr_luffy'),
+		('sess_tohru', 'usr_tohru'),
+		('sess_meow', 'usr_meow');
+	`
+	if _, err := db.Exec(seedQuery); err != nil {
+		return nil, fmt.Errorf("error seeding database: %w", err)
+	}
+
 	return &appdbimpl{c: db}, nil
 }
 

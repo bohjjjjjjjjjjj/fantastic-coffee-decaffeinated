@@ -16,11 +16,14 @@ RUN go build -o /out/webapi ./cmd/webapi/ \
 
 FROM debian:bookworm-slim
 
+
 RUN apt-get update \
  && apt-get install -y --no-install-recommends ca-certificates \
  && rm -rf /var/lib/apt/lists/* \
  && useradd --system --uid 10001 wasa \
- && mkdir -p /data/media && chown -R wasa:wasa /data
+ && mkdir -p /data/media \
+ && chown -R wasa:wasa /data \
+ && chmod -R 770 /data
 
 COPY --from=builder /out/webapi /usr/local/bin/webapi
 COPY --from=builder /out/healthcheck /usr/local/bin/healthcheck

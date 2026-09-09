@@ -93,7 +93,8 @@ func run() error {
 		}
 	}
 
-	dbconn, err := sql.Open("sqlite3", cfg.DB.Filename)
+	dsn := fmt.Sprintf("%s?mode=rwc&_foreign_keys=on", cfg.DB.Filename)
+	dbconn, err := sql.Open("sqlite3", dsn)
 	if err != nil {
 		logger.WithError(err).Error("error opening SQLite DB")
 		return fmt.Errorf("opening SQLite: %w", err)
